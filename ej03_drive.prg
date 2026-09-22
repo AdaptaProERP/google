@@ -76,7 +76,7 @@ FUNCTION Main()
 
          // 6. PERMISO
          ? "--- [6] Agregar permiso ---"
-         IF oDrive:AddPermission( oArch["id"], "jnadaptapro@gmail.com", "reader" )
+         IF oDrive:AddPermission( oArch["id"], "micuenta@gmail.com", "reader" )
             ? "  [OK] Permiso agregado"
          ENDIF
       ENDIF

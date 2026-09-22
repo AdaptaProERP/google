@@ -4,14 +4,14 @@
     Automatiza: descarga, instalacion, lanzamiento, Chrome OAuth.
     Requiere UN paso manual: montar disco G: desde bandeja.
 .DESCRIPTION
-    Ejecutar como Administrador. Chrome debe tener jnadaptapro@gmail.com logueado.
+    Ejecutar como Administrador. Chrome debe tener micuenta@gmail.com logueado.
     Script genera log + reporte JSON + exit code determinista.
 .NOTES
-    v3.1.0-final | 2026-09-21 | Cuenta: jnadaptapro@gmail.com | Disco: G:
+    v3.1.0-final | 2026-09-21 | Cuenta: micuenta@gmail.com | Disco: G:
 #>
 
 $ErrorActionPreference = "Stop"
-$CuentaObjetivo = "jnadaptapro@gmail.com"
+$CuentaObjetivo = "micuenta@gmail.com"
 $DriveLetra = "G"
 $MaxEspera = 180
 $LogFile = "$env:ProgramFiles\Google\Drive File Stream\install_log_v31.txt"

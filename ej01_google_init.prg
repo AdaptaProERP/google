@@ -33,7 +33,7 @@ FUNCTION Main()
    // METODO 2: Pasar API Key por parametro
    // ================================================================
    ? "--- [2] Solo API Key por parametro ---"
-   oGoogle := TGoogle():New( "AIzaSyB3xW0o3_KUSHW2rYiCB08RDbYUZdfNxbc" )
+   oGoogle := TGoogle():New( "TU_API_KEY_AQUI" )
    ? "  Cuenta (del JSON): " + oGoogle:cCuentaGmail
    ? "  Modelo (del JSON): " + oGoogle:cModelGemini
    oGoogle:End()
@@ -44,7 +44,7 @@ FUNCTION Main()
    // ================================================================
    ? "--- [3] Todos los parametros por parametros ---"
    oGoogle := TGoogle():New( ;
-      "AIzaSyB3xW0o3_KUSHW2rYiCB08RDbYUZdfNxbc", ;  // API Key
+      "TU_API_KEY_AQUI", ;  // API Key
       "mi-client-id.apps.googleusercontent.com", ;     // Client ID
       "mi-client-secret", ;                             // Client Secret
       "otro_usuario@gmail.com", ;                      // Cuenta Gmail
@@ -87,8 +87,8 @@ FUNCTION Main()
 
    // Restaurar config original
    oGoogle := TGoogle():New()
-   oGoogle:cApiKey       := "AIzaSyB3xW0o3_KUSHW2rYiCB08RDbYUZdfNxbc"
-   oGoogle:cCuentaGmail  := "jnadaptapro@gmail.com"
+   oGoogle:cApiKey       := "TU_API_KEY_AQUI"
+   oGoogle:cCuentaGmail  := "micuenta@gmail.com"
    oGoogle:cModelGemini  := "gemini-2.5-flash-lite"
    oGoogle:SaveConfig()
    ? "  Config restaurada para: " + oGoogle:cCuentaGmail

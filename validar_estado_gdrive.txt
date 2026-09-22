@@ -2,13 +2,13 @@
 .SYNOPSIS
     Validador INDEPENDIENTE - 5 reglas de exito Google Drive + Chrome.
     Solo lectura. No modifica el sistema.
-    Cuenta: jnadaptapro@gmail.com | Disco: G:
+    Cuenta: micuenta@gmail.com | Disco: G:
 .NOTES
     v3.0.0-validador-chrome | 2026-09-21
     Exit code: 0=PRODUCCION, 1=PENDIENTE, 2=CRITICO
 #>
 
-$CuentaObjetivo = "jnadaptapro@gmail.com"
+$CuentaObjetivo = "micuenta@gmail.com"
 $DriveLetra     = "G"
 $ChromeProfile  = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default"
 $LogFile        = "$env:TEMP\gdrive_validacion_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
@@ -80,7 +80,7 @@ $Reglas += [PSCustomObject]@{
 }
 
 # ============================================================
-# REGLA 5: Chrome sesion jnadaptapro@gmail.com activa
+# REGLA 5: Chrome sesion micuenta@gmail.com activa
 # ============================================================
 $PrefsFile = "$ChromeProfile\Preferences"
 $R5 = $false

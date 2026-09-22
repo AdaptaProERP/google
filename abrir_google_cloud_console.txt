@@ -1,12 +1,12 @@
 <#
 .SYNOPSIS
     Acceso directo a Google Cloud Console para crear API-KEY.
-    Abre Chrome con la cuenta jnadaptapro@gmail.com.
+    Abre Chrome con la cuenta micuenta@gmail.com.
 .NOTES
     v1.0.0 | 2026-09-21
 #>
 
-$CuentaGoogle = "jnadaptapro@gmail.com"
+$CuentaGoogle = "micuenta@gmail.com"
 $ChromeExe = "$env:ProgramFiles\Google\Chrome\Application\chrome.exe"
 
 Write-Host "================================================================" -ForegroundColor Cyan

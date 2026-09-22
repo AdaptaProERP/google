@@ -3,14 +3,14 @@
     Asistente para obtener API-KEY Google Drive + Gemini para Adaptapro ERP.
     Guia paso a paso: creacion de credenciales en Google Cloud Console.
 .DESCRIPTION
-    Cuenta: jnadaptapro@gmail.com
+    Cuenta: micuenta@gmail.com
     Genera archivo de configuracion compatible con Registro API-KEY Gemini.
 .NOTES
     v1.0.0 | 2026-09-21
 #>
 
 $ErrorActionPreference = "Stop"
-$CuentaGoogle  = "jnadaptapro@gmail.com"
+$CuentaGoogle  = "micuenta@gmail.com"
 $ProyectoID    = "adaptapro-gdrive-$(Get-Date -Format 'yyyyMMdd')"
 $ConfigFile    = "c:\googledrive\config_apikey_adaptapro.txt"
 $LogFile       = "c:\googledrive\apikey_log_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt"

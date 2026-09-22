@@ -19,7 +19,7 @@ FUNCTION Main()
 
    ? "============================================================"
    ? "  EJEMPLO 05: Google Gmail API v1"
-   ? "  Cuenta: jnadaptapro@gmail.com"
+   ? "  Cuenta: micuenta@gmail.com"
    ? "============================================================"
    ?
 
@@ -64,11 +64,11 @@ FUNCTION Main()
 
    // 5. ENVIAR CORREO
    ? "--- [5] Enviar correo de prueba ---"
-   IF oGmail:SendMessage( "jnadaptapro@gmail.com", ;
+   IF oGmail:SendMessage( "micuenta@gmail.com", ;
                           "Test Ecosistema Google", ;
                           "Correo enviado desde TGoogleGmail" + CRLF + ;
                           "Harbour 3.2 + FiveWin 2.4" )
-      ? "  [OK] Enviado a jnadaptapro@gmail.com"
+      ? "  [OK] Enviado a micuenta@gmail.com"
    ELSE
       ? "  [ERROR] No se pudo enviar"
    ENDIF

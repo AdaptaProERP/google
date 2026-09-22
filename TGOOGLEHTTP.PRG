@@ -2,7 +2,7 @@
 // TGoogleHTTP - Cliente HTTP para Google APIs via WinHTTP OLE
 // Patron: CreateObject("WINHTTP.WinHttpRequest.5.1")
 // Compatible: Harbour 3.2 + FiveWin 2.4
-// Cuenta: jnadaptapro@gmail.com
+// Cuenta: micuenta@gmail.com
 //----------------------------------------------------------------------------//
 
 #include "FiveWin.ch"

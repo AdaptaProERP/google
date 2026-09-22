@@ -19,7 +19,7 @@ CLASS TGoogle
    DATA   cApiKey            // API Key Gemini/Drive
    DATA   cClientId          // OAuth Client ID
    DATA   cClientSecret      // OAuth Client Secret
-   DATA   cCuentaGmail       // Cuenta Gmail (default: jnadaptapro@gmail.com)
+   DATA   cCuentaGmail       // Cuenta Gmail (default: micuenta@gmail.com)
    DATA   cServerGemini      // URL servidor Gemini
    DATA   cModelGemini       // Modelo Gemini
 

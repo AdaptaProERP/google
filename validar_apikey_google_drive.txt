@@ -24,7 +24,7 @@ function Write-Log {
 Clear-Host
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host "  VALIDADOR API-KEY GOOGLE DRIVE + GEMINI" -ForegroundColor White
-Write-Host "  Cuenta: jnadaptapro@gmail.com" -ForegroundColor Yellow
+Write-Host "  Cuenta: micuenta@gmail.com" -ForegroundColor Yellow
 Write-Host "================================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -107,9 +107,9 @@ $chromeOK = $false
 if (Test-Path $PrefsFile) {
     $Prefs = Get-Content $PrefsFile -Raw | ConvertFrom-Json
     $Emails = $Prefs.account_info | Where-Object { $_.email -like "*@gmail.com" } | Select-Object -ExpandProperty email -ErrorAction SilentlyContinue
-    $chromeOK = $Emails -contains "jnadaptapro@gmail.com"
+    $chromeOK = $Emails -contains "micuenta@gmail.com"
 }
-$Resultados += [PSCustomObject]@{ Nombre = "Chrome sesion activa"; Estado = $chromeOK; Detalle = if($chromeOK){"jnadaptapro@gmail.com"}else{"Sin sesion"} }
+$Resultados += [PSCustomObject]@{ Nombre = "Chrome sesion activa"; Estado = $chromeOK; Detalle = if($chromeOK){"micuenta@gmail.com"}else{"Sin sesion"} }
 Write-Log "Chrome: $chromeOK" $(if($chromeOK){'OK'}else{'ERROR'})
 
 # ============================================================

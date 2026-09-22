@@ -1,7 +1,7 @@
 @ECHO OFF
 REM ================================================================
 REM build_google.bat - Compilación del Ecosistema Google para FW24
-REM Adaptapro ERP - Cuenta: jnadaptapro@gmail.com
+REM Adaptapro ERP - Cuenta: micuenta@gmail.com
 REM
 REM Requisitos:
 REM   - Harbour 3.2 en C:\harbour\bin\harbour.exe
@@ -16,7 +16,7 @@ SET OUTDIR=c:\googledrive
 
 ECHO ================================================================
 ECHO   COMPILACION ECO GOOGLE - Adaptapro ERP
-ECHO   Cuenta: jnadaptapro@gmail.com
+ECHO   Cuenta: micuenta@gmail.com
 ECHO ================================================================
 ECHO.
 

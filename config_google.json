@@ -2,7 +2,7 @@
   "api_key": "******************",
   "client_id": "",
   "client_secret": "",
-  "cuenta_gmail": "jnadaptapro@gmail.com",
+  "cuenta_gmail": "micuenta@gmail.com",
   "server_gemini": "https://generativelanguage.googleapis.com/v1beta/models/",
   "model_gemini": "gemini-2.5-flash-lite",
   "debug": false

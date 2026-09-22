@@ -92,7 +92,7 @@
 //----------------------------------------------------------------------------//
 // Defaults por usuario (sobreescribir via New() o config_google.json)
 //----------------------------------------------------------------------------//
-#define TGOOGLE_DEFAULT_EMAIL   "jnadaptapro@gmail.com"
+#define TGOOGLE_DEFAULT_EMAIL   "micuenta@gmail.com"
 #define TGOOGLE_DEFAULT_MODEL   "gemini-2.5-flash-lite"
 #define TGOOGLE_DEFAULT_SERVER  "https://generativelanguage.googleapis.com/v1beta/models/"
 

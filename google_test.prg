@@ -1,6 +1,6 @@
 //----------------------------------------------------------------------------//
 // google_test.prg - Test del Ecosistema Google para Adaptapro ERP
-// Cuenta: jnadaptapro@gmail.com
+// Cuenta: micuenta@gmail.com
 // Compilar: build_google.bat google_test
 //----------------------------------------------------------------------------//
 
@@ -23,7 +23,7 @@ Function Main()
 
    ? "================================================================"
    ? "  ECO GOOGLE - Adaptapro ERP v" + TGOOGLE_VERSION
-   ? "  Cuenta: jnadaptapro@gmail.com"
+   ? "  Cuenta: micuenta@gmail.com"
    ? "  Compilado: " + TGOOGLE_BUILD
    ? "================================================================"
    ?

@@ -1,7 +1,7 @@
 @ECHO OFF
 REM ================================================================
 REM build_ejemplos.bat - Compila los 7 ejemplos del Ecosistema Google
-REM Adaptapro ERP - Cuenta: jnadaptapro@gmail.com
+REM Adaptapro ERP - Cuenta: micuenta@gmail.com
 REM
 REM Requisitos:
 REM   - Harbour 3.2 en C:\harbour\bin\harbour.exe
