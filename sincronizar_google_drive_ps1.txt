@@ -1,0 +1,280 @@
+<#
+.SYNOPSIS
+    INSTALADOR COMPLETO Google Drive + Chrome para Adaptapro ERP.
+    Automatiza: descarga, instalacion, lanzamiento, Chrome OAuth.
+    Requiere UN paso manual: montar disco G: desde bandeja.
+.DESCRIPTION
+    Ejecutar como Administrador. Chrome debe tener jnadaptapro@gmail.com logueado.
+    Script genera log + reporte JSON + exit code determinista.
+.NOTES
+    v3.1.0-final | 2026-09-21 | Cuenta: jnadaptapro@gmail.com | Disco: G:
+#>
+
+$ErrorActionPreference = "Stop"
+$CuentaObjetivo = "jnadaptapro@gmail.com"
+$DriveLetra = "G"
+$MaxEspera = 180
+$LogFile = "$env:ProgramFiles\Google\Drive File Stream\install_log_v31.txt"
+$Reporte = "$env:TEMP\gdrive_final_$(Get-Date -Format 'yyyyMMdd_HHmmss').json"
+
+function Write-Log {
+    param([string]$Msg, [string]$Nivel = "INFO")
+    $Ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $L = "[$Ts] [$Nivel] $Msg"
+    Add-Content -Path $LogFile -Value $L -ErrorAction SilentlyContinue
+    switch ($Nivel) {
+        "ERROR" { Write-Host $L -ForegroundColor Red }
+        "WARN"  { Write-Host $L -ForegroundColor DarkYellow }
+        "OK"    { Write-Host $L -ForegroundColor Green }
+        default { Write-Host $L -ForegroundColor Gray }
+    }
+}
+
+function Test-DriveG {
+    $d = Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq $DriveLetra }
+    return @{ OK = [bool]$d; Libre = if($d){"$([math]::Round($d.Free/1GB,2)) GB"}else{"N/A"} }
+}
+
+function Get-ProcGD { Get-Process | Where-Object { $_.Name -like "*GoogleDrive*" } }
+
+# ============================================================
+# ADMIN
+# ============================================================
+$IsAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $IsAdmin) {
+    Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+    Exit
+}
+
+if (Test-Path $LogFile) { Remove-Item $LogFile -Force }
+Clear-Host
+
+Write-Host "================================================================" -ForegroundColor Cyan
+Write-Host "  GOOGLE DRIVE - INSTALACION COMPLETA v3.1" -ForegroundColor White
+Write-Host "  Cuenta: $CuentaObjetivo | Disco: ${DriveLetra}:" -ForegroundColor Yellow
+Write-Host "================================================================" -ForegroundColor Cyan
+Write-Log "=== INICIO INSTALACION COMPLETA v3.1 ==="
+
+$ExitCode = 0
+$R = @{} # Resultados
+
+try {
+    # ============================================================
+    # 1. CHROME - VERIFICAR SESION
+    # ============================================================
+    Write-Host "`n[1/5] CHROME - Verificando sesion $CuentaObjetivo..." -ForegroundColor Yellow
+    Write-Log "FASE 1: Chrome"
+
+    $ChromeOK = $false
+    $PrefsFile = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Preferences"
+    if (Test-Path $PrefsFile) {
+        $Prefs = Get-Content $PrefsFile -Raw | ConvertFrom-Json
+        $Emails = $Prefs.account_info | Where-Object { $_.email -like "*@gmail.com" } | Select-Object -ExpandProperty email -ErrorAction SilentlyContinue
+        $ChromeOK = $Emails -contains $CuentaObjetivo
+    }
+    $R["Chrome_sesion"] = $ChromeOK
+    Write-Host "  Sesion $CuentaObjetivo en Chrome: $(if($ChromeOK){'CONFIRMADA'}else{'NO ENCONTRADA'})" -ForegroundColor $(if($ChromeOK){'Green'}else{'Red'})
+    Write-Log "Chrome sesion: $ChromeOK" $(if($ChromeOK){'OK'}else{'ERROR'})
+
+    if (-not $ChromeOK) {
+        throw "Chrome no tiene la sesion $CuentaObjetivo. Abra Chrome y logged con esa cuenta."
+    }
+
+    # ============================================================
+    # 2. DRIVE FS - INSTALAR SI NO EXISTE
+    # ============================================================
+    Write-Host "`n[2/5] GOOGLE DRIVE FS - Verificando instalacion..." -ForegroundColor Yellow
+    Write-Log "FASE 2: Drive FS"
+
+    $InstallDir = "$env:ProgramFiles\Google\Drive File Stream"
+    $DriveExe = Get-ChildItem $InstallDir -Filter "GoogleDriveFS.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+
+    if ($DriveExe) {
+        Write-Host "  Instalado: v$($DriveExe.Directory.Parent.Name)" -ForegroundColor Green
+        Write-Log "Drive FS: $($DriveExe.FullName)" "OK"
+        $R["Drive_instalado"] = $true
+    } else {
+        Write-Host "  Descargando..." -ForegroundColor Gray
+        $URL = "https://dl.google.com/drive-file-stream/GoogleDriveSetup.exe"
+        $Tmp = "$env:TEMP\GoogleDriveSetup.exe"
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri $URL -OutFile $Tmp -UseBasicParsing
+        Write-Host "  Instalando silenciosamente..." -ForegroundColor Gray
+        $p = Start-Process $Tmp -ArgumentList "--silent --desktop_shortcut" -Wait -PassThru
+        if (Test-Path $Tmp) { Remove-Item $Tmp -Force }
+        $DriveExe = Get-ChildItem $InstallDir -Filter "GoogleDriveFS.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        $R["Drive_instalado"] = [bool]$DriveExe
+        if (-not $DriveExe) { throw "No se pudo instalar Drive FS" }
+        Write-Log "Drive FS instalado" "OK"
+    }
+
+    # ============================================================
+    # 3. LANZAR DRIVE + CHROME OAUTH
+    # ============================================================
+    Write-Host "`n[3/5] LANZANDO Drive FS + Chrome OAuth..." -ForegroundColor Yellow
+    Write-Log "FASE 3: Lanzamiento"
+
+    # Matar instancias previas
+    Get-Process | Where-Object { $_.Name -like "*GoogleDrive*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+
+    # Lanzar Drive FS
+    Start-Process explorer.exe -ArgumentList "`"$($DriveExe.FullName)`""
+    Write-Log "Drive FS lanzado"
+
+    # Esperar proceso
+    $w = 0; $procOK = $false
+    while ($w -lt 30) {
+        Start-Sleep -Seconds 2; $w += 2
+        if (Get-ProcGD) { $procOK = $true; break }
+    }
+    $R["Drive_proceso"] = $procOK
+    Write-Host "  Proceso activo: $procOK (${w}s)" -ForegroundColor $(if($procOK){'Green'}else{'Red'})
+    Write-Log "Proceso: $procOK" $(if($procOK){'OK'}else{'ERROR'})
+
+    # Abrir Chrome con Google Drive para autenticar
+    $ChromeExe = "$env:ProgramFiles\Google\Chrome\Application\chrome.exe"
+    if (Test-Path $ChromeExe) {
+        Write-Host "  Abriendo Chrome -> drive.google.com..." -ForegroundColor Gray
+        Start-Process $ChromeExe -ArgumentList "--profile-directory=Default --app=https://drive.google.com"
+        Write-Log "Chrome abierto con Google Drive"
+    }
+
+    # Esperar montaje G:
+    Write-Host "  Esperando montaje disco ${DriveLetra}: (${MaxEspera}s max)..." -ForegroundColor Gray
+    $w = 0; $gOK = $false
+    while ($w -lt $MaxEspera) {
+        Start-Sleep -Seconds 5; $w += 5
+        if ((Test-DriveG).OK) {
+            $gOK = $true
+            Write-Host "  Disco ${DriveLetra}: MONTADO! ($(Test-DriveG).Libre libre)" -ForegroundColor Green
+            Write-Log "Disco G: montado tras ${w}s" "OK"
+            break
+        }
+        if ($w % 20 -eq 0) { Write-Host "  ...${w}s esperando..." -ForegroundColor Gray }
+    }
+    $R["Disco_G"] = $gOK
+
+    if (-not $gOK) {
+        Write-Host ""
+        Write-Host "  ============================================================" -ForegroundColor Yellow
+        Write-Host "  PASO MANUAL REQUERIDO:" -ForegroundColor Yellow
+        Write-Host "  1. Haga clic en el icono de Google Drive en la BANDEJA" -ForegroundColor White
+        Write-Host "  2. Click derecho -> Preferencias" -ForegroundColor White
+        Write-Host "  3. Sincronizar -> Preferencias de configuracion" -ForegroundColor White
+        Write-Host "  4. Seleccione: Usar letra de unidad discreta -> G:" -ForegroundColor White
+        Write-Host "  5. Acepte y espere a que se monte" -ForegroundColor White
+        Write-Host "  ============================================================" -ForegroundColor Yellow
+        Write-Log "Disco G: requiere configuracion manual" "WARN"
+
+        # Esperar 60s mas por si el usuario lo hace
+        Write-Host "  Esperando 60s adicionales..." -ForegroundColor Gray
+        $w2 = 0
+        while ($w2 -lt 60) {
+            Start-Sleep -Seconds 5; $w2 += 5
+            if ((Test-DriveG).OK) {
+                $gOK = $true
+                $R["Disco_G"] = $true
+                Write-Host "  Disco ${DriveLetra}: MONTADO tras accion manual!" -ForegroundColor Green
+                Write-Log "Disco G: montado manualmente tras ${w2}s adicionales" "OK"
+                break
+            }
+        }
+    }
+
+    # ============================================================
+    # 4. VALIDAR 5 REGLAS
+    # ============================================================
+    Write-Host "`n[4/5] VALIDANDO 5 reglas de exito..." -ForegroundColor Yellow
+    Write-Log "FASE 4: Validacion"
+
+    # R1: Exe
+    $r1 = [bool]$DriveExe
+
+    # R2: Proceso
+    $r2 = $procOK
+
+    # R3: Disco G
+    $r3 = (Test-DriveG).OK
+
+    # R4: Login DriveFS
+    $ud = "$env:LOCALAPPDATA\Google\DriveFS"
+    $r4 = (Test-Path "$ud\root_preference_sqlite.db") -or [bool](Get-ChildItem $ud -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^\d{18,}$' })
+
+    # R5: Chrome
+    $r5 = $ChromeOK
+
+    $reglas = @(
+        [PSCustomObject]@{N="Ejecutable instalado"; P=$r1; D=$DriveExe.FullName}
+        [PSCustomObject]@{N="Proceso activo"; P=$r2; D="PID: $((Get-ProcGD).Id -join ', ')"}
+        [PSCustomObject]@{N="Disco ${DriveLetra}: montado"; P=$r3; D=(Test-DriveG).Libre}
+        [PSCustomObject]@{N="Login DriveFS registrado"; P=$r4; D="BD SQLite"}
+        [PSCustomObject]@{N="Chrome sesion activa"; P=$r5; D=$CuentaObjetivo}
+    )
+
+    foreach ($i in 0..4) {
+        $r = $reglas[$i]
+        $ico = if($r.P){"  OK  "}else{"FALLO"}
+        $col = if($r.P){"Green"}else{"Red"}
+        Write-Host "  [$ico] R$($i+1): $($r.N)" -ForegroundColor $col
+        Write-Host "         $($r.D)" -ForegroundColor Gray
+        Write-Log "R$($i+1): $($r.N) = $($r.P)" $(if($r.P){'OK'}else{'ERROR'})
+    }
+
+    $pasan = ($reglas | Where-Object { $_.P }).Count
+    if ($pasan -eq 5) { $ExitCode = 0 }
+    elseif ($pasan -ge 3) { $ExitCode = 2 }
+    else { $ExitCode = 1 }
+
+    # ============================================================
+    # 5. RESUMEN FINAL
+    # ============================================================
+    Write-Host "`n[5/5] RESUMEN DE PRODUCCION..." -ForegroundColor Yellow
+
+    $ReporteObj = @{
+        Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        Cuenta = $CuentaObjetivo
+        Disco = "${DriveLetra}:"
+        ExitCode = $ExitCode
+        Reglas = "$pasan/5"
+        Detalles = $reglas
+    }
+    $ReporteObj | ConvertTo-Json -Depth 4 | Set-Content -Path $Reporte -Encoding UTF8
+
+    Write-Host ""
+    Write-Host "================================================================" -ForegroundColor Cyan
+    if ($pasan -eq 5) {
+        Write-Host "  INSTALACION COMPLETA - PRODUCCION OPERATIVA" -ForegroundColor Green
+    } elseif ($pasan -ge 3) {
+        Write-Host "  INSTALACION PARCIAL - ACCIONES PENDIENTES" -ForegroundColor Yellow
+    } else {
+        Write-Host "  INSTALACION CON ERRORES" -ForegroundColor Red
+    }
+    Write-Host "================================================================" -ForegroundColor Cyan
+    Write-Host "  Cuenta:  $CuentaObjetivo"
+    Write-Host "  Disco:   ${DriveLetra}:\"
+    Write-Host "  Drive:   v$($DriveExe.Directory.Parent.Name)"
+    Write-Host "  Chrome:  OK"
+    Write-Host "  Reglas:  $pasan/5"
+    Write-Host "  Exit:    $ExitCode"
+    Write-Host "  Log:     $LogFile"
+    Write-Host "  Reporte: $Reporte"
+    Write-Host "================================================================" -ForegroundColor Cyan
+
+    if ($pasan -eq 5) {
+        Write-Host ""
+        Write-Host "  TODO LISTO. Disco ${DriveLetra}: operativo para Adaptapro." -ForegroundColor Green
+        Write-Host "  La extraccion de datos puede iniciarse." -ForegroundColor Green
+    }
+
+    Write-Log "=== FIN v3.1 | ExitCode: $ExitCode | $pasan/5 ==="
+
+} catch {
+    $ExitCode = 1
+    Write-Log "EXCEPCION: $($_.Exception.Message)" "ERROR"
+    Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
+}
+
+Write-Host "`nPresione cualquier tecla para cerrar..." -ForegroundColor Gray
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+Exit $ExitCode

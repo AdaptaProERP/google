@@ -1,0 +1,149 @@
+<#
+.SYNOPSIS
+    Validador de API-KEY Google Drive + Gemini.
+    Prueba conectividad con Google APIs usando las credenciales.
+.NOTES
+    v1.0.0 | 2026-09-21
+#>
+
+$ErrorActionPreference = "Stop"
+$LogFile = "c:\googledrive\apikey_validation_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+
+function Write-Log {
+    param([string]$Msg, [string]$Nivel = "INFO")
+    $Ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $L = "[$Ts] [$Nivel] $Msg"
+    Add-Content -Path $LogFile -Value $L -ErrorAction SilentlyContinue
+    switch ($Nivel) {
+        "ERROR" { Write-Host $L -ForegroundColor Red }
+        "OK"    { Write-Host $L -ForegroundColor Green }
+        default { Write-Host $L -ForegroundColor Gray }
+    }
+}
+
+Clear-Host
+Write-Host "================================================================" -ForegroundColor Cyan
+Write-Host "  VALIDADOR API-KEY GOOGLE DRIVE + GEMINI" -ForegroundColor White
+Write-Host "  Cuenta: jnadaptapro@gmail.com" -ForegroundColor Yellow
+Write-Host "================================================================" -ForegroundColor Cyan
+Write-Host ""
+
+$Resultados = @()
+
+# ============================================================
+# CARGAR CONFIGURACION
+# ============================================================
+Write-Host "[1/4] Cargando configuracion..." -ForegroundColor Yellow
+$configPath = "c:\googledrive\config_apikey_adaptapro.txt"
+
+if (-not (Test-Path $configPath)) {
+    Write-Host "  [ERROR] Archivo de configuracion no encontrado" -ForegroundColor Red
+    Write-Host "  Ejecute primero: solicitar_apikey_google_drive.txt" -ForegroundColor Yellow
+    Exit 1
+}
+
+$config = Get-Content $configPath -Raw
+$apikey  = if ($config -match "API_KEY_GEMINI=(.+)") { $matches[1].Trim() } else { "" }
+$clientId = if ($config -match "GOOGLE_DRIVE=(.+)") { $matches[1].Trim() } else { "" }
+$clientSecret = if ($config -match "GMAIL_SECRET=(.+)") { $matches[1].Trim() } else { "" }
+$cuenta = if ($config -match "CUENTA_GMAIL=(.+)") { $matches[1].Trim() } else { "" }
+
+Write-Log "Config cargada. API-Key: $($apikey.Substring(0, [Math]::Min(10, $apikey.Length)))..."
+
+# ============================================================
+# VALIDAR 1: API-KEY Gemini
+# ============================================================
+Write-Host "`n[2/4] Probando API-KEY Gemini..." -ForegroundColor Yellow
+
+try {
+    $testURL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=$apikey"
+    $testBody = @{ contents = @(@{ parts = @(@{ text = "Responde solo: OK" }) }) } | ConvertTo-Json -Depth 3
+    $response = Invoke-RestMethod -Uri $testURL -Method Post -Body $testBody -ContentType "application/json" -TimeoutSec 15
+    $geminiOK = [bool]$response.candidates
+    $Resultados += [PSCustomObject]@{ Nombre = "API-KEY Gemini"; Estado = $geminiOK; Detalle = if($geminiOK){"Conexion exitosa"}else{"Sin respuesta"}}
+    Write-Log "API-KEY Gemini: $geminiOK" $(if($geminiOK){'OK'}else{'ERROR'})
+} catch {
+    $geminiOK = $false
+    $Resultados += [PSCustomObject]@{ Nombre = "API-KEY Gemini"; Estado = $false; Detalle = "Error: $($_.Exception.Message)" }
+    Write-Log "API-KEY Gemini: FALLO - $($_.Exception.Message)" "ERROR"
+}
+
+# ============================================================
+# VALIDAR 2: Google Drive API
+# ============================================================
+Write-Host "`n[3/4] Probando Google Drive API..." -ForegroundColor Yellow
+
+try {
+    $driveURL = "https://www.googleapis.com/drive/v3/about?key=$apikey"
+    $driveResp = Invoke-RestMethod -Uri $driveURL -Method Get -TimeoutSec 10
+    $driveOK = [bool]$driveResp.user
+    $userName = if($driveResp.user.displayName){$driveResp.user.displayName}else{"N/A"}
+    $Resultados += [PSCustomObject]@{ Nombre = "Google Drive API"; Estado = $driveOK; Detalle = "Usuario: $userName" }
+    Write-Log "Google Drive API: $driveOK | Usuario: $userName" $(if($driveOK){'OK'}else{'ERROR'})
+} catch {
+    $driveOK = $false
+    $Resultados += [PSCustomObject]@{ Nombre = "Google Drive API"; Estado = $false; Detalle = "Error: $($_.Exception.Message)" }
+    Write-Log "Google Drive API: FALLO - $($_.Exception.Message)" "ERROR"
+}
+
+# ============================================================
+# VALIDAR 3: Disco G:
+# ============================================================
+Write-Host "`n[3/4] Verificando Disco G:..." -ForegroundColor Yellow
+
+$discoG = Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq "G" }
+$gOK = [bool]$discoG
+$DetalleG = if($gOK){"Libre: $([math]::Round($discoG.Free/1GB,2)) GB"}else{"No montado"}
+$Resultados += [PSCustomObject]@{ Nombre = "Disco G: Adaptapro"; Estado = $gOK; Detalle = $DetalleG }
+Write-Log "Disco G: $gOK | $DetalleG" $(if($gOK){'OK'}else{'ERROR'})
+
+# ============================================================
+# VALIDAR 4: Chrome sesion
+# ============================================================
+Write-Host "`n[4/4] Verificando Chrome..." -ForegroundColor Yellow
+
+$PrefsFile = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Preferences"
+$chromeOK = $false
+if (Test-Path $PrefsFile) {
+    $Prefs = Get-Content $PrefsFile -Raw | ConvertFrom-Json
+    $Emails = $Prefs.account_info | Where-Object { $_.email -like "*@gmail.com" } | Select-Object -ExpandProperty email -ErrorAction SilentlyContinue
+    $chromeOK = $Emails -contains "jnadaptapro@gmail.com"
+}
+$Resultados += [PSCustomObject]@{ Nombre = "Chrome sesion activa"; Estado = $chromeOK; Detalle = if($chromeOK){"jnadaptapro@gmail.com"}else{"Sin sesion"} }
+Write-Log "Chrome: $chromeOK" $(if($chromeOK){'OK'}else{'ERROR'})
+
+# ============================================================
+# REPORTE FINAL
+# ============================================================
+$Pasan = ($Resultados | Where-Object { $_.Estado }).Count
+$Total = $Resultados.Count
+
+Write-Host ""
+Write-Host "================================================================" -ForegroundColor Cyan
+Write-Host "  RESULTADO: $Pasan/$Total validaciones pasadas" -ForegroundColor $(if($Pasan -eq $Total){"Green"}else{"Yellow"})
+
+foreach ($r in $Resultados) {
+    $Icono = if($r.Estado){"  OK  "}else{"FALLO"}
+    $Color = if($r.Estado){"Green"}else{"Red"}
+    Write-Host "  [$Icono] $($r.Nombre)" -ForegroundColor $Color
+    Write-Host "         $($r.Detalle)" -ForegroundColor Gray
+}
+
+Write-Host ""
+
+if ($Pasan -eq $Total) {
+    Write-Host "  ESTADO: LISTO PARA ADAPTAPRO ERP" -ForegroundColor Green
+    Write-Host "  API-KEY validada. Disco G: operativo." -ForegroundColor Green
+    Write-Host "  Puede proceder a configurar Adaptapro." -ForegroundColor Green
+} else {
+    Write-Host "  ESTADO: REQUIERE CORRECCIONES" -ForegroundColor Yellow
+    if (-not $geminiOK) { Write-Host "  - Verifique la API-KEY Gemini en Google Cloud Console" -ForegroundColor Yellow }
+    if (-not $driveOK) { Write-Host "  - Verifique que Google Drive API esta habilitada" -ForegroundColor Yellow }
+    if (-not $gOK) { Write-Host "  - Monte el disco G: desde Google Drive" -ForegroundColor Yellow }
+}
+
+Write-Host "================================================================" -ForegroundColor Cyan
+Write-Host "  Log: $LogFile" -ForegroundColor Gray
+Write-Host "================================================================" -ForegroundColor Cyan
+
+Exit $(if($Pasan -eq $Total){0}else{1})

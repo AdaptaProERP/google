@@ -1,0 +1,185 @@
+<#
+.SYNOPSIS
+    Validador INDEPENDIENTE - 5 reglas de exito Google Drive + Chrome.
+    Solo lectura. No modifica el sistema.
+    Cuenta: jnadaptapro@gmail.com | Disco: G:
+.NOTES
+    v3.0.0-validador-chrome | 2026-09-21
+    Exit code: 0=PRODUCCION, 1=PENDIENTE, 2=CRITICO
+#>
+
+$CuentaObjetivo = "jnadaptapro@gmail.com"
+$DriveLetra     = "G"
+$ChromeProfile  = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default"
+$LogFile        = "$env:TEMP\gdrive_validacion_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+$ReporteJSON    = "$env:TEMP\gdrive_validacion_$(Get-Date -Format 'yyyyMMdd_HHmmss').json"
+
+$Reglas = @()
+
+# ============================================================
+# REGLA 1: Ejecutable instalado
+# ============================================================
+$Exe = Get-ChildItem "$env:ProgramFiles\Google\Drive File Stream" -Filter "GoogleDriveFS.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+$R1 = [bool]$Exe
+$Reglas += [PSCustomObject]@{
+    Num     = 1
+    Nombre  = "Ejecutable GoogleDriveFS.exe instalado"
+    Paso    = $R1
+    Detalle = if($R1){"v$($Exe.Directory.Parent.Name) -> $($Exe.FullName)"}else{"No encontrado en $env:ProgramFiles\Google\Drive File Stream"}
+    Evidencia = if($R1){$Exe.FullName}else{$null}
+}
+
+# ============================================================
+# REGLA 2: Proceso Google Drive activo
+# ============================================================
+$Proc = Get-Process | Where-Object { $_.Name -like "*GoogleDrive*" }
+$R2 = [bool]$Proc
+$Reglas += [PSCustomObject]@{
+    Num     = 2
+    Nombre  = "Proceso GoogleDriveFS activo en memoria"
+    Paso    = $R2
+    Detalle = if($R2){"PID: $($Proc.Id -join ', ') | Mem: $([math]::Round(($Proc | Measure-Object WorkingSet64 -Sum).Sum/1MB,0)) MB"}else{"Sin procesos GoogleDrive*"}
+    Evidencia = if($R2){$Proc | Select-Object Name, Id, StartTime | ConvertTo-Json}else{$null}
+}
+
+# ============================================================
+# REGLA 3: Disco G: montado y accesible
+# ============================================================
+$DiscoG = Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq $DriveLetra }
+$R3 = [bool]$DiscoG
+$DetalleG = if($R3){"Root: $($DiscoG.Root) | Libre: $([math]::Round($DiscoG.Free/1GB,2)) GB | Usado: $([math]::Round($DiscoG.Used/1GB,2)) GB"}else{"Disco ${DriveLetra}: no montado"}
+$Reglas += [PSCustomObject]@{
+    Num     = 3
+    Nombre  = "Disco ${DriveLetra}: montado y disponible"
+    Paso    = $R3
+    Detalle = $DetalleG
+    Evidencia = if($R3){$DiscoG | Select-Object Name, Root, Used, Free | ConvertTo-Json}else{$null}
+}
+
+# Contenido del disco G si existe
+$ContenidoG = $null
+if ($R3) {
+    $ContenidoG = Get-ChildItem "${DriveLetra}:\" -ErrorAction SilentlyContinue
+}
+
+# ============================================================
+# REGLA 4: Login registrado en DriveFS
+# ============================================================
+$UserDataDir = "$env:LOCALAPPDATA\Google\DriveFS"
+$BDLogin     = Test-Path "$UserDataDir\root_preference_sqlite.db"
+$DirUsuario  = Get-ChildItem $UserDataDir -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^\d{18,}$' }
+$R4 = $BDLogin -or [bool]$DirUsuario
+$DetalleLogin = "BD: $BDLogin | Dir usuario: $([bool]$DirUsuario)"
+if ($DirUsuario) { $DetalleLogin += " | ID: $($DirUsuario.Name)" }
+$Reglas += [PSCustomObject]@{
+    Num     = 4
+    Nombre  = "Login registrado en Google DriveFS"
+    Paso    = $R4
+    Detalle = $DetalleLogin
+    Evidencia = if($DirUsuario){$DirUsuario.Name}else{$null}
+}
+
+# ============================================================
+# REGLA 5: Chrome sesion jnadaptapro@gmail.com activa
+# ============================================================
+$PrefsFile = "$ChromeProfile\Preferences"
+$R5 = $false
+$DetalleChrome = "Perfil Default no encontrado"
+if (Test-Path $PrefsFile) {
+    try {
+        $Prefs = Get-Content $PrefsFile -Raw | ConvertFrom-Json
+        $Emails = $Prefs.account_info | Where-Object { $_.email -like "*@gmail.com" } | Select-Object -ExpandProperty email -ErrorAction SilentlyContinue
+        if ($Emails -contains $CuentaObjetivo) {
+            $R5 = $true
+            $DetalleChrome = "Cuenta $CuentaObjetivo CONFIRMADA en Chrome Default"
+        } else {
+            $DetalleChrome = "Cuenta $CuentaObjetivo NO encontrada. Emails: $($Emails -join ', ')"
+        }
+    } catch {
+        $DetalleChrome = "Error leyendo Preferences: $($_.Exception.Message)"
+    }
+}
+$Reglas += [PSCustomObject]@{
+    Num     = 5
+    Nombre  = "Chrome sesion $CuentaObjetivo activa"
+    Paso    = $R5
+    Detalle = $DetalleChrome
+    Evidencia = if($R5){$CuentaObjetivo}else{$null}
+}
+
+# ============================================================
+# SALIDA CONSOLA
+# ============================================================
+$Pasan = ($Reglas | Where-Object { $_.Paso }).Count
+$Total = $Reglas.Count
+
+Write-Host ""
+Write-Host "================================================================" -ForegroundColor Cyan
+Write-Host "  VALIDADOR GOOGLE DRIVE - ADAPTAPRO ERP v3.0" -ForegroundColor White
+Write-Host "  Cuenta: $CuentaObjetivo | Disco: ${DriveLetra}: | Chrome: Default" -ForegroundColor Yellow
+Write-Host "  Fecha: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Gray
+Write-Host "================================================================" -ForegroundColor Cyan
+Write-Host ""
+
+foreach ($r in $Reglas) {
+    $Icono = if($r.Paso){"  OK  "}else{"FALLO"}
+    $Color = if($r.Paso){"Green"}else{"Red"}
+    Write-Host "[$Icono] R$($r.Num): $($r.Nombre)" -ForegroundColor $Color
+    Write-Host "        $($r.Detalle)" -ForegroundColor Gray
+    Write-Host ""
+}
+
+Write-Host "================================================================" -ForegroundColor Cyan
+Write-Host "  RESULTADO: $Pasan/$Total reglas pasadas" -ForegroundColor $(if($Pasan -eq $Total){"Green"}elseif($Pasan -ge 3){"Yellow"}else{"Red"})
+
+if ($Pasan -eq $Total) {
+    Write-Host "  ESTADO: PRODUCCION OPERATIVA" -ForegroundColor Green
+    Write-Host "  Disco ${DriveLetra}: listo para extraccion Adaptapro" -ForegroundColor Green
+    $ExitCode = 0
+} elseif ($Pasan -ge 3) {
+    Write-Host "  ESTADO: INSTALACION PARCIAL - Acciones pendientes" -ForegroundColor Yellow
+    if (-not $R3) { Write-Host "  -> Montar disco ${DriveLetra}: desde Google Drive" -ForegroundColor Yellow }
+    $ExitCode = 1
+} else {
+    Write-Host "  ESTADO: CRITICO - Instalacion completa requerida" -ForegroundColor Red
+    Write-Host "  -> Ejecutar: sincronizar_google_drive_ps1.txt como Admin" -ForegroundColor Red
+    $ExitCode = 2
+}
+Write-Host "================================================================" -ForegroundColor Cyan
+
+# Detalles extra si G: esta montado
+if ($R3 -and $ContenidoG) {
+    Write-Host ""
+    Write-Host "  CONTENIDO EN ${DriveLetra}:\" -ForegroundColor White
+    foreach ($item in $ContenidoG | Select-Object -First 10) {
+        $tipo = if($item.PSIsContainer){"[DIR]"}else{"[ARC]"}
+        $tam  = if(-not $item.PSIsContainer){"$([math]::Round($item.Length/1KB,1)) KB"}else{""}
+        Write-Host "    $tipo $($item.Name) $tam" -ForegroundColor Gray
+    }
+    if ($ContenidoG.Count -gt 10) {
+        Write-Host "    ... y $($ContenidoG.Count - 10) items mas" -ForegroundColor Gray
+    }
+}
+
+# Guardar log
+$Reglas | ForEach-Object { Add-Content -Path $LogFile -Value "R$($_.Num): $($_.Nombre) -> $($_.Paso) | $($_.Detalle)" }
+Add-Content -Path $LogFile -Value "RESULTADO: $Pasan/$Total | ExitCode: $ExitCode"
+
+# Guardar JSON
+$Reporte = @{
+    Timestamp   = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Cuenta      = $CuentaObjetivo
+    Disco       = "${DriveLetra}:"
+    Estado      = if($Pasan -eq $Total){"PRODUCCION"}elseif($Pasan -ge 3){"PARCIAL"}else{"CRITICO"}
+    ExitCode    = $ExitCode
+    ReglasTotal = $Total
+    ReglasPasan = $Pasan
+    Reglas      = $Reglas
+}
+$Reporte | ConvertTo-Json -Depth 4 | Set-Content -Path $ReporteJSON -Encoding UTF8
+
+Write-Host ""
+Write-Host "  Log:     $LogFile" -ForegroundColor Gray
+Write-Host "  Reporte: $ReporteJSON" -ForegroundColor Gray
+
+Exit $ExitCode

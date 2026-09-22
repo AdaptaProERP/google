@@ -1,0 +1,166 @@
+Para detectar de forma óptima si una unidad de disco o unidad mapeada/virtual (como **G:** o Google Drive/red) está montada y accesible en Windows sin provocar bloqueos de E/S ni cuadros de error del sistema (como el clásico diálogo *"No hay disco en la unidad"*), la API estándar de Win32 recomendada es **`GetDriveTypeA`** combinada con **`GetVolumeInformationA`** y el flag de seguridad **`SEM_FAILCRITICALERRORS`** mediante `SetErrorMode`.
+
+A continuación tienes el bloque completo estructurado con las funciones en nivel PRG (`ISDRIVEAVAILABLE`, `ISDRIVEG`) y el wrapper nativo de C dentro de directivas `#pragma BEGINDUMP ... #pragma ENDDUMP`, 100% compatible con **AdaptaPro**, **FiveWin**, **xHarbour 0.82** y el compilador **Borland C++ 5.5 / 5.82**.
+
+---
+
+### Código para integrar en AdaptaPro (`DRIVECHECK.PRG` o en tu archivo de utilidades)
+
+```c
+//----------------------------------------------------------------------------//
+// MODULO: DRIVECHECK.PRG
+// PROPOSITO: Deteccion nativa Win32 de disponibilidad y estado de unidades
+//            locales, virtuales y mapeadas (Google Drive, NAS, Red, etc.)
+// APLICACION: AdaptaPro ERP
+//----------------------------------------------------------------------------//
+
+#include "FiveWin.ch"
+
+//----------------------------------------------------------------------------//
+// Verifica directamente si la unidad G: se encuentra disponible
+// Retorna .T. si existe y responde, .F. si no esta montada o no responde
+//----------------------------------------------------------------------------//
+FUNCTION ISDRIVEG()
+RETURN ISDRIVEAVAILABLE( "G:" )
+
+//----------------------------------------------------------------------------//
+// Verifica cualquier unidad pasada por parametro ("C:", "D:", "G:\", etc.)
+//----------------------------------------------------------------------------//
+FUNCTION ISDRIVEAVAILABLE( cDrive )
+
+   LOCAL lOk := .F.
+
+   DEFAULT cDrive := "G:"
+   cDrive := ALLTRIM( UPPER( cDrive ) )
+
+   IF Empty( cDrive )
+      RETURN .F.
+   ENDIF
+
+   // Normalizar a formato "X:\"
+   IF !(":" $ cDrive)
+      cDrive := LEFT( cDrive, 1 ) + ":"
+   ENDIF
+
+   IF !(RIGHT( cDrive, 1 ) == "\")
+      cDrive += "\"
+   ENDIF
+
+   lOk := WIN_ISDRIVEREADY( cDrive )
+
+RETURN lOk
+
+//----------------------------------------------------------------------------//
+// Obtiene el tipo de unidad en texto para auditoria o diagnostico
+//----------------------------------------------------------------------------//
+FUNCTION GETDRIVETYPETEXT( cDrive )
+   LOCAL nType
+   LOCAL aTipos := { "DESCONOCIDO", ;   // DRIVE_UNKNOWN     = 0
+                     "NO_EXISTE",   ;   // DRIVE_NO_ROOT_DIR = 1
+                     "REMOVIBLE",   ;   // DRIVE_REMOVABLE   = 2
+                     "FIJO",        ;   // DRIVE_FIXED       = 3
+                     "RED/REMOTO",  ;   // DRIVE_REMOTE      = 4
+                     "CDROM",       ;   // DRIVE_CDROM       = 5
+                     "RAMDISK" }        // DRIVE_RAMDISK     = 6
+
+   DEFAULT cDrive := "G:\"
+   IF !(RIGHT( cDrive, 1 ) == "\")
+      cDrive := ALLTRIM( cDrive ) + "\"
+   ENDIF
+
+   nType := WIN_GETDRIVETYPE( cDrive ) // 0 a 6
+
+   IF nType >= 0 .AND. nType < LEN( aTipos )
+      RETURN aTipos[ nType + 1 ]
+   ENDIF
+
+RETURN "DESCONOCIDO"
+
+//============================================================================//
+// ZONA C / WRAPPER NATIVO WIN32 API PARA BORLAND C++ / XHARBOUR
+//============================================================================//
+#pragma BEGINDUMP
+
+#include <windows.h>
+#include <hbapi.h>
+
+/*
+ * WIN_ISDRIVEREADY( cRootPath ) -> Retorna 1 (.T.) o 0 (.F.)
+ * Evalua tipo de unidad y verifica si el volumen responde a I/O sin 
+ * congelar el hilo principal ni mostrar modales criticos de Windows.
+ */
+HB_FUNC( WIN_ISDRIVEREADY )
+{
+   const char * lpRootPathName;
+   UINT uDriveType;
+   UINT uOldErrorMode;
+   char szVolName[ MAX_PATH + 1 ];
+   char szFSName[ 32 ];
+   DWORD dwVolSerial = 0;
+   DWORD dwMaxCompLen = 0;
+   DWORD dwFSFlags = 0;
+   BOOL bReady = FALSE;
+
+   if( hb_pcount() < 1 || hb_param( 1, HB_IT_STRING ) == NULL )
+   {
+      hb_retl( 0 );
+      return;
+   }
+
+   lpRootPathName = hb_parc( 1 );
+
+   // 1. Suprimir dialogos de error criticos del SO (ej. "Inserte disco en unidad...")
+   uOldErrorMode = SetErrorMode( SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX );
+
+   // 2. Obtener tipo de unidad
+   uDriveType = GetDriveTypeA( lpRootPathName );
+
+   // DRIVE_UNKNOWN (0) o DRIVE_NO_ROOT_DIR (1) indican que no existe ni esta montada
+   if( uDriveType > DRIVE_NO_ROOT_DIR )
+   {
+      // 3. Confirmar que el volumen es leible y responde a llamadas de metadata
+      if( GetVolumeInformationA(
+            lpRootPathName,
+            szVolName,
+            sizeof( szVolName ),
+            &dwVolSerial,
+            &dwMaxCompLen,
+            &dwFSFlags,
+            szFSName,
+            sizeof( szFSName ) ) )
+      {
+         bReady = TRUE;
+      }
+   }
+
+   // Restaurar el modo de error previo de Windows
+   SetErrorMode( uOldErrorMode );
+
+   hb_retl( bReady ? 1 : 0 );
+}
+
+/*
+ * WIN_GETDRIVETYPE( cRootPath ) -> Retorna el valor UINT de GetDriveTypeA
+ */
+HB_FUNC( WIN_GETDRIVETYPE )
+{
+   if( hb_pcount() >= 1 && hb_param( 1, HB_IT_STRING ) != NULL )
+   {
+      hb_retni( ( int ) GetDriveTypeA( hb_parc( 1 ) ) );
+   }
+   else
+   {
+      hb_retni( 1 ); // DRIVE_NO_ROOT_DIR
+   }
+}
+
+#pragma ENDDUMP
+
+```
+
+---
+
+### Detalles técnicos de la implementación
+
+1. **Evita congelamientos y popups del sistema:** Al consultar unidades virtuales o de red desconectadas, Windows puede intentar mostrar la ventana modal `HardError`. La llamada previa a `SetErrorMode( SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX )` garantiza que si la unidad G: está desmontada, la API falle silenciosamente en microsegundos y retorne `.F.` a AdaptaPro sin interrumpir al usuario.
+2. **Compatibilidad total de volumen:** `GetVolumeInformationA` garantiza que unidades tipo Google Drive / OneDrive para escritorio o mapeos Samba/SMB que figuren como `DRIVE_REMOTE` o `DRIVE_FIXED` no solo figuren asignadas, sino que el demonio virtual de sincronización esté realmente en ejecución y responda a consultas del sistema de archivos.

@@ -1,0 +1,25 @@
+# Binarios
+*.exe
+*.obj
+*.c
+*.map
+*.il?
+b32.bc
+*.log
+
+# Harbour/xHarbour temporales
+*.o
+*.dll
+
+# Temporales
+*.tmp
+*.bak
+Thumbs.db
+
+# Config local (no subir credenciales reales)
+# config_google.json  # Descomentar si no quiere subir API keys
+
+# IDE
+*.dsm
+*.dpv
+*.dpt

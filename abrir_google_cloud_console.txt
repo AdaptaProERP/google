@@ -1,0 +1,54 @@
+<#
+.SYNOPSIS
+    Acceso directo a Google Cloud Console para crear API-KEY.
+    Abre Chrome con la cuenta jnadaptapro@gmail.com.
+.NOTES
+    v1.0.0 | 2026-09-21
+#>
+
+$CuentaGoogle = "jnadaptapro@gmail.com"
+$ChromeExe = "$env:ProgramFiles\Google\Chrome\Application\chrome.exe"
+
+Write-Host "================================================================" -ForegroundColor Cyan
+Write-Host "  ACCESO DIRECTO - GOOGLE CLOUD CONSOLE" -ForegroundColor White
+Write-Host "  Cuenta: $CuentaGoogle" -ForegroundColor Yellow
+Write-Host "================================================================" -ForegroundColor Cyan
+Write-Host ""
+
+# URLs criticas para crear credenciales
+$URLs = @{
+    "1. Cloud Console"        = "https://console.cloud.google.com/"
+    "2. Crear Proyecto"       = "https://console.cloud.google.com/projectcreate"
+    "3. Habilitar APIs"       = "https://console.cloud.google.com/apis/library"
+    "4. Credenciales (API-KEY)" = "https://console.cloud.google.com/apis/credentials"
+    "5. Pantalla Consentimiento" = "https://console.cloud.google.com/apis/credentials/consent"
+    "6. Drive API"            = "https://console.cloud.google.com/apis/library/drive.googleapis.com"
+    "7. Gemini API"           = "https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com"
+}
+
+Write-Host "  URLs que se abriran:" -ForegroundColor Gray
+foreach ($key in $URLs.Keys) {
+    Write-Host "    $key" -ForegroundColor White
+}
+
+Write-Host ""
+Write-Host "  Abriendo Chrome..." -ForegroundColor Yellow
+
+foreach ($key in $URLs.Keys) {
+    $url = $URLs[$key]
+    Start-Process $ChromeExe -ArgumentList "--profile-directory=Default --app=$url"
+    Start-Sleep -Milliseconds 800
+}
+
+Write-Host ""
+Write-Host "  Chrome abierto con 7 pestanas de Google Cloud Console" -ForegroundColor Green
+Write-Host ""
+Write-Host "  ORDEN RECOMENDADO:" -ForegroundColor Cyan
+Write-Host "  1. Cree un proyecto nuevo (pestana 2)" -ForegroundColor White
+Write-Host "  2. Habilite Drive API y Gemini API (pestana 6 y 7)" -ForegroundColor White
+Write-Host "  3. Cree API-KEY (pestana 4)" -ForegroundColor White
+Write-Host "  4. Cree OAuth Client ID (pestana 4)" -ForegroundColor White
+Write-Host "  5. Configure pantalla de consentimiento (pestana 5)" -ForegroundColor White
+Write-Host ""
+Write-Host "  DESPUES: Ejecute solicitar_apikey_google_drive.txt" -ForegroundColor Yellow
+Write-Host "================================================================" -ForegroundColor Cyan

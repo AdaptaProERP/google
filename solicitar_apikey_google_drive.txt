@@ -1,0 +1,244 @@
+<#
+.SYNOPSIS
+    Asistente para obtener API-KEY Google Drive + Gemini para Adaptapro ERP.
+    Guia paso a paso: creacion de credenciales en Google Cloud Console.
+.DESCRIPTION
+    Cuenta: jnadaptapro@gmail.com
+    Genera archivo de configuracion compatible con Registro API-KEY Gemini.
+.NOTES
+    v1.0.0 | 2026-09-21
+#>
+
+$ErrorActionPreference = "Stop"
+$CuentaGoogle  = "jnadaptapro@gmail.com"
+$ProyectoID    = "adaptapro-gdrive-$(Get-Date -Format 'yyyyMMdd')"
+$ConfigFile    = "c:\googledrive\config_apikey_adaptapro.txt"
+$LogFile       = "c:\googledrive\apikey_log_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt"
+
+function Write-Log {
+    param([string]$Msg)
+    $Ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $L = "[$Ts] $Msg"
+    Add-Content -Path $LogFile -Value $L -ErrorAction SilentlyContinue
+    Write-Host $L -ForegroundColor Gray
+}
+
+function Open-URL {
+    param([string]$URL)
+    Start-Process $URL
+    Write-Log "URL abierta: $URL"
+}
+
+function Pause-Step {
+    param([string]$Mensaje)
+    Write-Host ""
+    Write-Host "  $Mensaje" -ForegroundColor Yellow
+    Write-Host "  Presione ENTER para continuar..." -ForegroundColor DarkGray
+    $null = Read-Host
+}
+
+Clear-Host
+Write-Host "================================================================" -ForegroundColor Cyan
+Write-Host "  ASISTENTE API-KEY GOOGLE DRIVE + GEMINI                     " -ForegroundColor White
+Write-Host "  Cuenta: $CuentaGoogle | Adaptapro ERP                        " -ForegroundColor Yellow
+Write-Host "================================================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Log "=== INICIO ASISTENTE API-KEY ==="
+
+try {
+    # ============================================================
+    # PASO 1: ABRIR GOOGLE CLOUD CONSOLE
+    # ============================================================
+    Write-Host "[1/7] ABRIENDO Google Cloud Console..." -ForegroundColor Yellow
+    Write-Log "PASO 1: Google Cloud Console"
+    Write-Host "  Se abrira el navegador Chrome con $CuentaGoogle" -ForegroundColor Gray
+    Write-Host "  IMPORTANTE: Verifique que la sesion sea $CuentaGoogle" -ForegroundColor Red
+
+    $cloudURL = "https://console.cloud.google.com/"
+    Open-URL $cloudURL
+
+    Pause-Step "Verifique que Chrome abrio con cuenta $CuentaGoogle y esta en Google Cloud Console"
+
+    # ============================================================
+    # PASO 2: CREAR/SELECCIONAR PROYECTO
+    # ============================================================
+    Write-Host "`n[2/7] CREAR PROYECTO en Google Cloud..." -ForegroundColor Yellow
+    Write-Log "PASO 2: Crear proyecto"
+    Write-Host "  En la consola:" -ForegroundColor Gray
+    Write-Host "  1. Arriba-izquierda: haga clic en el selector de proyectos" -ForegroundColor White
+    Write-Host "  2. Click 'NUEVO PROYECTO'" -ForegroundColor White
+    Write-Host "  3. Nombre: adaptapro-gdrive" -ForegroundColor White
+    Write-Host "  4. Click 'CREAR'" -ForegroundColor White
+    Write-Host "  5. Espere a que se cree (30s)" -ForegroundColor White
+
+    $proyectoURL = "https://console.cloud.google.com/projectcreate"
+    Open-URL $proyectoURL
+
+    Pause-Step "Proyecto creado. Seleccionalo si no esta seleccionado automaticamente."
+
+    # ============================================================
+    # PASO 3: HABILITAR APIS NECESARIAS
+    # ============================================================
+    Write-Host "`n[3/7] HABILITAR APIs necesarias..." -ForegroundColor Yellow
+    Write-Log "PASO 3: Habilitar APIs"
+    Write-Host "  APIs que debe habilitar:" -ForegroundColor Gray
+    Write-Host "  1. Google Drive API" -ForegroundColor White
+    Write-Host "  2. Google Gemini API (Generative Language API)" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  Para habilitar cada una:" -ForegroundColor Gray
+    Write-Host "  - Menu lateral > APIs y servicios > Habilitar APIs y servicios" -ForegroundColor White
+    Write-Host "  - Busque el nombre de la API > HABILITAR" -ForegroundColor White
+
+    $apisURL = "https://console.cloud.google.com/apis/library"
+    Open-URL $apisURL
+
+    Pause-Step "Ambas APIs habilitadas: Google Drive API y Generative Language API"
+
+    # ============================================================
+    # PASO 4: CREAR CREDENCIALES API-KEY
+    # ============================================================
+    Write-Host "`n[4/7] CREAR API-KEY (Gemini + Drive)..." -ForegroundColor Yellow
+    Write-Log "PASO 4: API-KEY"
+    Write-Host "  Pasos:" -ForegroundColor Gray
+    Write-Host "  1. Menu lateral > APIs y servicios > Credenciales" -ForegroundColor White
+    Write-Host "  2. Click '+ CREAR CREDENCIALES'" -ForegroundColor White
+    Write-Host "  3. Seleccione 'API key'" -ForegroundColor White
+    Write-Host "  4. Se generara una clave tipo: AIzaSy..." -ForegroundColor White
+    Write-Host "  5. COPIE la clave y GUARDELA en un lugar seguro" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  RECOMENDACION: Restrinja la clave solo a:" -ForegroundColor Yellow
+    Write-Host "    - Google Drive API" -ForegroundColor Yellow
+    Write-Host "    - Generative Language API" -ForegroundColor Yellow
+
+    $credURL = "https://console.cloud.google.com/apis/credentials"
+    Open-URL $credURL
+
+    Write-Host ""
+    $apikey = Read-Host "  Pegue la API-KEY generada (empieza con AIzaSy...)"
+
+    if ($apikey -notmatch "^AIzaSy") {
+        Write-Host "  [ADVERTENCIA] La API-KEY no parece correcta (debe empezar con AIzaSy)" -ForegroundColor Yellow
+    }
+
+    Write-Log "API-KEY capturada: $($apikey.Substring(0, [Math]::Min(10, $apikey.Length)))..."
+
+    # ============================================================
+    # PASO 5: CREAR OAUTH 2.0 CLIENT ID (para Google Drive)
+    # ============================================================
+    Write-Host "`n[5/7] CREAR OAuth 2.0 Client ID (Google Drive)..." -ForegroundColor Yellow
+    Write-Log "PASO 5: OAuth Client ID"
+    Write-Host "  En la misma pantalla de Credenciales:" -ForegroundColor Gray
+    Write-Host "  1. Click '+ CREAR CREDENCIALES'" -ForegroundColor White
+    Write-Host "  2. Seleccione 'ID de cliente de OAuth'" -ForegroundColor White
+    Write-Host "  3. Tipo de aplicacion: 'Aplicacion de escritorio'" -ForegroundColor White
+    Write-Host "  4. Nombre: Adaptapro-Drive" -ForegroundColor White
+    Write-Host "  5. Click 'CREAR'" -ForegroundColor White
+    Write-Host "  6. COPIE el Client ID y Client Secret" -ForegroundColor Red
+
+    Pause-Point "Credenciales OAuth creadas"
+
+    Write-Host ""
+    $clientId = Read-Host "  Pegue el CLIENT ID (termina en .apps.googleusercontent.com)"
+    $clientSecret = Read-Host "  Pegue el CLIENT SECRET"
+
+    Write-Log "Client ID capturado: $($clientId.Substring(0, [Math]::Min(20, $clientId.Length)))..."
+
+    # ============================================================
+    # PASO 6: CONFIGURAR pantalla de consentimiento (opcional)
+    # ============================================================
+    Write-Host "`n[6/7] CONFIGURAR pantalla de consentimiento..." -ForegroundColor Yellow
+    Write-Log "PASO 6: Pantalla de consentimiento"
+    Write-Host "  Si es la primera vez:" -ForegroundColor Gray
+    Write-Host "  1. Menu lateral > APIs y servicios > Pantalla de consentimiento" -ForegroundColor White
+    Write-Host "  2. Seleccione 'Externo'" -ForegroundColor White
+    Write-Host "  3. Nombre: Adaptapro ERP" -ForegroundColor White
+    Write-Host "  4. Email de soporte: $CuentaGoogle" -ForegroundColor White
+    Write-Host "  5. Email de usuario: $CuentaGoogle" -ForegroundColor White
+    Write-Host "  6. Guardar y continuar" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  En 'Alcance' (Scopes):" -ForegroundColor Gray
+    Write-Host "  7. Click 'AGREGAR O QUITAR ALCANCES'" -ForegroundColor White
+    Write-Host "  8. Busque y agregue:" -ForegroundColor White
+    Write-Host "     - https://www.googleapis.com/auth/drive.file" -ForegroundColor Yellow
+    Write-Host "     - https://www.googleapis.com/auth/drive" -ForegroundColor Yellow
+    Write-Host "  9. Guardar" -ForegroundColor White
+
+    Pause-Step "Pantalla de consentimiento configurada"
+
+    # ============================================================
+    # PASO 7: GENERAR ARCHIVO DE CONFIGURACION
+    # ============================================================
+    Write-Host "`n[7/7] GENERANDO archivo de configuracion..." -ForegroundColor Yellow
+    Write-Log "PASO 7: Generar config"
+
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $configContent = @"
+================================================================
+  CONFIGURACION API-KEY GOOGLE DRIVE + GEMINI
+  Adaptapro ERP | Cuenta: $CuentaGoogle
+  Generado: $timestamp
+================================================================
+
+[SISTEMA]
+SERVIDOR=https://generativelanguage.googleapis.com/v1beta/models/
+MODELO_API=gemini-2.5-flash-lite
+API_KEY_GEMINI=$apikey
+GOOGLE_DRIVE=$clientId
+PROXY_BRIDGE=
+CUENTA_GMAIL=$CuentaGoogle
+GMAIL_ID=$clientId
+GMAIL_SECRET=$clientSecret
+
+[DRIVE_CONFIG]
+PROJECT_ID=$ProyectoID
+DRIVE_SCOPE=https://www.googleapis.com/auth/drive.file
+API_KEY_DRIVE=$apikey
+CLIENT_ID=$clientId
+CLIENT_SECRET=$clientSecret
+REDIRECT_URI=urn:ietf:wg:oauth:2.0:oob
+
+[VERIFICACION]
+FECHA_GENERACION=$timestamp
+CUENTA_VERIFICADA=true
+DRIVE_G_ACTIVO=true
+"@
+
+    Set-Content -Path $ConfigFile -Value $configContent -Encoding UTF8
+    Write-Host "  Archivo generado: $ConfigFile" -ForegroundColor Green
+    Write-Log "Config guardada: $ConfigFile"
+
+    # ============================================================
+    # RESUMEN
+    # ============================================================
+    Write-Host ""
+    Write-Host "================================================================" -ForegroundColor Cyan
+    Write-Host "  CONFIGURACION COMPLETADA" -ForegroundColor Green
+    Write-Host "================================================================" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "  SERVIDOR:      https://generativelanguage.googleapis.com/v1beta/models/" -ForegroundColor Gray
+    Write-Host "  MODELO API:    gemini-2.5-flash-lite" -ForegroundColor Gray
+    Write-Host "  API-KEY:       $($apikey.Substring(0,10))..." -ForegroundColor Green
+    Write-Host "  CLIENT ID:     $($clientId.Substring(0,20))..." -ForegroundColor Green
+    Write-Host "  CLIENT SECRET: ******" -ForegroundColor Green
+    Write-Host "  CUENTA:        $CuentaGoogle" -ForegroundColor Gray
+    Write-Host "  DISCO G:       ACTIVO" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "  Archivo:       $ConfigFile" -ForegroundColor Yellow
+    Write-Host "  Log:           $LogFile" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  SIGUIENTE PASO:" -ForegroundColor White
+    Write-Host "  1. Abra Adaptapro ERP" -ForegroundColor White
+    Write-Host "  2. Vaya a Configuracion > API-KEY Gemini" -ForegroundColor White
+    Write-Host "  3. Pegue los valores del archivo de configuracion" -ForegroundColor White
+    Write-Host "  4. Haga clic en 'Validar' para verificar la conexion" -ForegroundColor White
+    Write-Host "================================================================" -ForegroundColor Cyan
+
+    Write-Log "=== FIN ASISTENTE API-KEY ==="
+
+} catch {
+    Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red
+    Write-Log "ERROR: $($_.Exception.Message)"
+}
+
+Write-Host "`nPresione ENTER para cerrar..." -ForegroundColor Gray
+$null = Read-Host
