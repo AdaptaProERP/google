@@ -29,10 +29,12 @@ PRG = \
   $(GOOGLEDIR)\TGOOGLETASKS.PRG     \
   $(GOOGLEDIR)\TGOOGLEGMAIL.PRG     \
   $(GOOGLEDIR)\TGOOGLEGEMINI.PRG    \
+  $(GOOGLEDIR)\TMIMO.PRG            \
   $(GOOGLEDIR)\TGOOGLESHEETS.PRG    \
   $(GOOGLEDIR)\DRIVECHECK.PRG       \
   $(GOOGLEDIR)\GEMINI_CHATBOT.PRG   \
-  $(GOOGLEDIR)\ej08_gemini_chatbot.prg
+  $(GOOGLEDIR)\ej08_gemini_chatbot.prg \
+  $(GOOGLEDIR)\ej09_mimo.prg
 
 C = \
   $(GOOGLEDIR)\hb_compat.c
@@ -51,10 +53,12 @@ GOOGLE_OBJ = \
   $(GOOGLEDIR)\obj\TGOOGLETASKS.OBJ     \
   $(GOOGLEDIR)\obj\TGOOGLEGMAIL.OBJ     \
   $(GOOGLEDIR)\obj\TGOOGLEGEMINI.OBJ    \
+  $(GOOGLEDIR)\obj\TMIMO.OBJ            \
   $(GOOGLEDIR)\obj\TGOOGLESHEETS.OBJ    \
   $(GOOGLEDIR)\obj\DRIVECHECK.OBJ       \
   $(GOOGLEDIR)\obj\GEMINI_CHATBOT.OBJ   \
   $(GOOGLEDIR)\obj\ej08_gemini_chatbot.OBJ \
+  $(GOOGLEDIR)\obj\ej09_mimo.OBJ \
   $(GOOGLEDIR)\obj\hb_compat.OBJ
 
 #-------------------------------------------------------------
@@ -142,6 +146,10 @@ full: all
 	$(BCDIR)\bin\bcc32 -c -tWM -I$(HBDIR)\include -I$(FWDIR)\include -I$(XHBDIR)\include -I$(GOOGLEDIR) -o$(GOOGLEDIR)\obj\ej08_gemini_chatbot $(GOOGLEDIR)\obj\ej08_gemini_chatbot.c
 	@del $(GOOGLEDIR)\obj\ej08_gemini_chatbot.c 2>nul
 
+	$(HBDIR)\bin\harbour $(GOOGLEDIR)\ej09_mimo.prg /N /W /O$(GOOGLEDIR)\obj\ /I$(FWDIR)\include;$(HBDIR)\include;$(XHBDIR)\include;$(GOOGLEDIR)
+	$(BCDIR)\bin\bcc32 -c -tWM -I$(HBDIR)\include -I$(FWDIR)\include -I$(XHBDIR)\include -I$(GOOGLEDIR) -o$(GOOGLEDIR)\obj\ej09_mimo $(GOOGLEDIR)\obj\ej09_mimo.c
+	@del $(GOOGLEDIR)\obj\ej09_mimo.c 2>nul
+
 	@echo.
 	@echo ==========================================
 	@echo  TODO compilado correctamente
@@ -178,6 +186,7 @@ info:
 	@echo   TGOOGLETASKS.PRG     - Tasks API
 	@echo   TGOOGLEGMAIL.PRG     - Gmail API
 	@echo   TGOOGLEGEMINI.PRG    - Gemini API
+	@echo   TMIMO.PRG            - Xiaomi MiMo API (V2.6)
 	@echo   TGOOGLESHEETS.PRG    - Sheets API
 	@echo   DRIVECHECK.PRG       - Deteccion Google Drive
 	@echo   GEMINI_CHATBOT.PRG   - Chatbot WhatsApp-like
@@ -191,3 +200,4 @@ info:
 	@echo   ej06_gemini.prg      - Gemini
 	@echo   ej07_sheets.prg      - Sheets
 	@echo   ej08_gemini_chatbot - Chatbot juridico
+	@echo   ej09_mimo          - Xiaomi MiMo V2.6

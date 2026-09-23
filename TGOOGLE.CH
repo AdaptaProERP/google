@@ -38,6 +38,13 @@
 // Gemini
 #define GOOGLE_GEMINI_URL    "https://generativelanguage.googleapis.com/v1beta/models"
 
+// Xiaomi MiMo (OpenAI Chat Completions compatible, Sep-2026)
+// API key: sk-... (pay-as-you-go) / tp-... (token plan). Header: api-key: <key>
+#define MIMO_API_BASE        "https://api.xiaomimimo.com/v1"
+#define MIMO_MODEL_FLASH     "mimo-v2.6-flash"
+#define MIMO_MODEL_PRO       "mimo-v2.6-pro"
+#define MIMO_MODEL_ULTRA     "mimo-v2.6-pro-ultraspeed"
+
 //----------------------------------------------------------------------------//
 // OAuth2
 //----------------------------------------------------------------------------//

@@ -23,6 +23,11 @@ CLASS TGoogle
    DATA   cServerGemini      // URL servidor Gemini
    DATA   cModelGemini       // Modelo Gemini
 
+   // Xiaomi MiMo (OpenAI compatible)
+   DATA   cApiKeyMimo        // API Key MiMo (sk-... / tp-...)
+   DATA   cServerMimo        // URL base MiMo
+   DATA   cModelMimo         // Modelo MiMo (mimo-v2.6-flash)
+
    // OAuth
    DATA   oAuth              // Objeto TGoogleAuth
 
@@ -33,6 +38,7 @@ CLASS TGoogle
    DATA   oGmail             // TGoogleGmail
    DATA   oGemini            // TGoogleGemini
    DATA   oSheets            // TGoogleSheets
+   DATA   oMimo              // TMimo (Xiaomi MiMo)
 
    // HTTP compartido
    DATA   oHttp              // TGoogleHTTP
@@ -51,6 +57,8 @@ CLASS TGoogle
    METHOD ShowConfig()
    METHOD SetApiKey( cKey )
    METHOD ResetApiKey()
+   METHOD SetMimoKey( cKey )
+   METHOD ResetMimoKey()
 
    // OAuth
    METHOD Authenticate()
@@ -64,6 +72,7 @@ CLASS TGoogle
    METHOD Gmail()
    METHOD Gemini()
    METHOD Sheets()
+   METHOD Mimo()
 
    // HTTP helper
    METHOD HttpRequest( cMethod, cUrl, cBody, aHeaders )
@@ -82,6 +91,9 @@ METHOD New( cApiKey, cClientId, cClientSecret, ;
    ::cCuentaGmail  := ""
    ::cServerGemini := ""
    ::cModelGemini  := ""
+   ::cApiKeyMimo   := ""
+   ::cServerMimo   := ""
+   ::cModelMimo    := ""
 
    ::cLastError := ""
    ::lDebug     := .F.
@@ -128,6 +140,12 @@ METHOD New( cApiKey, cClientId, cClientSecret, ;
    if EMPTY( ::cModelGemini )
       ::cModelGemini := TGOOGLE_DEFAULT_MODEL
    endif
+   if EMPTY( ::cServerMimo )
+      ::cServerMimo := MIMO_API_BASE
+   endif
+   if EMPTY( ::cModelMimo )
+      ::cModelMimo := MIMO_MODEL_FLASH
+   endif
 
    // Crear OAuth con credenciales cargadas
    ::oAuth := TGoogleAuth():New( ::cClientId, ::cClientSecret )
@@ -157,6 +175,9 @@ METHOD End() CLASS TGoogle
    if ::oSheets != NIL
       ::oSheets:End()
    endif
+   if ::oMimo != NIL
+      ::oMimo:End()
+   endif
 
    // Liberar OAuth
    if ::oAuth != NIL
@@ -177,10 +198,15 @@ METHOD LoadConfig() CLASS TGoogle
    local cFile := TGOOGLE_CONFIG_FILE
    local hConfig
 
-   // 1. Intentar desde oDp:GEMINIAPIKEY (Adaptapro ERP)
+   // 1. Intentar desde oDp (Adaptapro ERP): GEMINIAPIKEY / MIMOAPIKEY
    if Type( "oDp" ) == "O" .AND. __ObjHasData( oDp, "GEMINIAPIKEY" )
       if !EMPTY( oDp:GEMINIAPIKEY )
          ::cApiKey := oDp:GEMINIAPIKEY
+      endif
+   endif
+   if Type( "oDp" ) == "O" .AND. __ObjHasData( oDp, "MIMOAPIKEY" )
+      if !EMPTY( oDp:MIMOAPIKEY )
+         ::cApiKeyMimo := oDp:MIMOAPIKEY
       endif
    endif
 
@@ -198,6 +224,11 @@ METHOD LoadConfig() CLASS TGoogle
          ::cServerGemini := TGoogleJSON():Get( hConfig, "server_gemini", "" )
          ::cModelGemini  := TGoogleJSON():Get( hConfig, "model_gemini", "" )
          ::lDebug        := TGoogleJSON():Get( hConfig, "debug", .F. )
+         if EMPTY( ::cApiKeyMimo )
+            ::cApiKeyMimo := TGoogleJSON():Get( hConfig, "mimo_api_key", "" )
+         endif
+         ::cServerMimo   := TGoogleJSON():Get( hConfig, "mimo_server", "" )
+         ::cModelMimo    := TGoogleJSON():Get( hConfig, "mimo_model", "" )
       endif
    endif
 
@@ -216,6 +247,9 @@ METHOD SaveConfig() CLASS TGoogle
    TGoogleJSON():Set( hConfig, "server_gemini", ::cServerGemini )
    TGoogleJSON():Set( hConfig, "model_gemini", ::cModelGemini )
    TGoogleJSON():Set( hConfig, "debug", ::lDebug )
+   TGoogleJSON():Set( hConfig, "mimo_api_key", ::cApiKeyMimo )
+   TGoogleJSON():Set( hConfig, "mimo_server", ::cServerMimo )
+   TGoogleJSON():Set( hConfig, "mimo_model", ::cModelMimo )
 
 return TGoogleJSON():ToFile( TGOOGLE_CONFIG_FILE, hConfig )
 
@@ -230,6 +264,9 @@ METHOD ShowConfig() CLASS TGoogle
    ? "  Server Gemini:" + ::cServerGemini
    ? "  Modelo:       " + ::cModelGemini
    ? "  Debug:        " + IF( ::lDebug, "ON", "OFF" )
+   ? "  MIMO Key:     " + IF( EMPTY( ::cApiKeyMimo ), "(no configurada)", LEFT( ::cApiKeyMimo, 10 ) + "..." )
+   ? "  MIMO Server:  " + ::cServerMimo
+   ? "  MIMO Modelo:  " + ::cModelMimo
 
 return nil
 
@@ -269,6 +306,44 @@ METHOD ResetApiKey() CLASS TGoogle
    BEGIN SEQUENCE
       if Type( "oDp" ) == "O"
          oDp:GEMINIAPIKEY := ""
+      endif
+   RECOVER
+   END SEQUENCE
+
+   ::SaveConfig()
+
+return .T.
+
+//----------------------------------------------------------------------------//
+// SetMimoKey / ResetMimoKey: key MiMo en memoria + oDp:MIMOAPIKEY + JSON
+//----------------------------------------------------------------------------//
+
+METHOD SetMimoKey( cKey ) CLASS TGoogle
+
+   if cKey == NIL
+      return .F.
+   endif
+
+   ::cApiKeyMimo := AllTrim( cKey )
+
+   BEGIN SEQUENCE
+      if Type( "oDp" ) == "O"
+         oDp:MIMOAPIKEY := ::cApiKeyMimo
+      endif
+   RECOVER
+   END SEQUENCE
+
+   ::SaveConfig()
+
+return .T.
+
+METHOD ResetMimoKey() CLASS TGoogle
+
+   ::cApiKeyMimo := ""
+
+   BEGIN SEQUENCE
+      if Type( "oDp" ) == "O"
+         oDp:MIMOAPIKEY := ""
       endif
    RECOVER
    END SEQUENCE
@@ -390,6 +465,16 @@ METHOD Sheets() CLASS TGoogle
 return ::oSheets
 
 //----------------------------------------------------------------------------//
+
+METHOD Mimo() CLASS TGoogle
+
+   if ::oMimo == NIL
+      ::oMimo := TMimo():New( Self )
+   endif
+
+return ::oMimo
+
+//----------------------------------------------------------------------------//
 // HTTP Helper
 //----------------------------------------------------------------------------//
 
@@ -461,6 +546,44 @@ FUNCTION GEMINI_GETAPIKEY()
 
    local oGoogle := TGoogle():New()
    local cKey := oGoogle:cApiKey
+
+   oGoogle:End()
+
+return cKey
+
+//----------------------------------------------------------------------------//
+// Funciones de cambio/reset de API key de Xiaomi MiMo
+// Uso: MIMO_SETAPIKEY( "sk-..." ) / MIMO_RESETAPIKEY()
+// Prioridad de lectura: oDp:MIMOAPIKEY > config_google.json
+//----------------------------------------------------------------------------//
+
+FUNCTION MIMO_SETAPIKEY( cKey )
+
+   local oGoogle
+
+   if cKey == NIL .OR. Empty( cKey )
+      return .F.
+   endif
+
+   oGoogle := TGoogle():New()
+   oGoogle:SetMimoKey( cKey )
+   oGoogle:End()
+
+return .T.
+
+FUNCTION MIMO_RESETAPIKEY()
+
+   local oGoogle := TGoogle():New()
+
+   oGoogle:ResetMimoKey()
+   oGoogle:End()
+
+return .T.
+
+FUNCTION MIMO_GETAPIKEY()
+
+   local oGoogle := TGoogle():New()
+   local cKey := oGoogle:cApiKeyMimo
 
    oGoogle:End()
 
