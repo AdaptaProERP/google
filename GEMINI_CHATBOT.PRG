@@ -1,8 +1,9 @@
 //----------------------------------------------------------------------------//
 // GEMINI_CHATBOT.PRG
 // Chatbot juridico con interfaz tipo WhatsApp para AdaptaPro ERP
-// Usa TGoogleGemini para consultas multi-turno
-// Compatible: xHarbour + Harbour 3.2 + FiveWin 2.4
+// VENTANA NATIVA FiveWin (DEFINE WINDOW) - sin TMDI/DpMdi del ERP
+// Proveedores: GEMINI (default) / MIMO (Xiaomi MiMo V2.6)
+// Compatible: xHarbour 0.82 + FiveWin 2.4 (sin harbour.dll)
 //----------------------------------------------------------------------------//
 
 #include "FiveWin.ch"
@@ -12,8 +13,10 @@
 // Variables de modulo
 //----------------------------------------------------------------------------//
 
+STATIC oChatWnd
 STATIC oChatGoogle
 STATIC oChatGemini
+STATIC oChatMimo
 STATIC oChatBrw
 STATIC oChatGet
 STATIC oChatStatus
@@ -23,6 +26,7 @@ STATIC aChatDisplay  := {}
 STATIC cChatPrompt   := ""
 STATIC cChatFuentes  := ""
 STATIC cChatInput    := ""
+STATIC cChatProvider := "GEMINI"
 
 #define CLR_USER_BG   RGB(0xD9,0xF4,0xDD)
 #define CLR_BOT_BG    RGB(0xE8,0xE8,0xE8)
@@ -33,18 +37,20 @@ STATIC cChatInput    := ""
 #define CLR_SEND_BTN  RGB(0x00,0xA8,0x84)
 
 //----------------------------------------------------------------------------//
-// MAIN: Interfaz chatbot tipo WhatsApp
+// MAIN: Interfaz chatbot tipo WhatsApp (ventana nativa FiveWin)
+// cProvider: "GEMINI" (default) o "MIMO"
 //----------------------------------------------------------------------------//
 
-FUNCTION GEMINI_CHATBOT( cPrompt, cFuentes, cTitulo )
+FUNCTION GEMINI_CHATBOT( cPrompt, cFuentes, cTitulo, cProvider )
 
    LOCAL aCoors, nAltoWin, nAnchoWin, nRowInput, nRowBrw, nHeightBrw
    LOCAL oFont, oFontInput, oFontTime, oFontHeader, oFontBtn
-   LOCAL oBtnSend, oBtnAttach, oBtnClear, oBtnConfig
+   LOCAL cStatus
 
-   DEFAULT cPrompt  := "Eres un asistente juridico experto en derecho venezolano."
-   DEFAULT cFuentes := ""
-   DEFAULT cTitulo  := "Consulta Juridica IA"
+   DEFAULT cPrompt   := "Eres un asistente juridico experto en derecho venezolano."
+   DEFAULT cFuentes  := ""
+   DEFAULT cTitulo   := "Consulta Juridica IA"
+   DEFAULT cProvider := "GEMINI"
 
    // Dimensiones
    aCoors       := GetCoors( GetDesktopWindow() )
@@ -55,20 +61,39 @@ FUNCTION GEMINI_CHATBOT( cPrompt, cFuentes, cTitulo )
    nHeightBrw   := nRowInput - nRowBrw - 5
 
    // Guardar en modulo
-   cChatPrompt  := cPrompt
-   cChatFuentes := cFuentes
-   cChatInput   := ""
-
-   // Inicializar Google Gemini
-   oChatGoogle := TGoogle():New()
-   IF EMPTY( oChatGoogle:cApiKey )
-      MsgStop( "No se encontro API Key de Gemini. Configure config_google.json" )
-      RETURN NIL
+   cChatPrompt   := cPrompt
+   cChatFuentes  := cFuentes
+   cChatInput    := ""
+   cChatProvider := UPPER( ALLTRIM( cProvider ) )
+   IF cChatProvider != "MIMO"
+      cChatProvider := "GEMINI"
    ENDIF
 
-   oChatGemini := oChatGoogle:Gemini()
-   oChatGemini:SetModel( oChatGoogle:cModelGemini )
-   oChatGemini:SetTemperature( 0.3 )
+   // Inicializar Google / credenciales segun proveedor
+   oChatGoogle := TGoogle():New()
+   IF cChatProvider == "MIMO"
+      IF EMPTY( oChatGoogle:cApiKeyMimo )
+         MsgStop( "No se encontro API Key de MiMo. Use MIMO_SETAPIKEY( 'sk-...' )" )
+         oChatGoogle:End()
+         RETURN NIL
+      ENDIF
+      oChatGemini := NIL
+      oChatMimo   := oChatGoogle:Mimo()
+      oChatMimo:SetModel( oChatGoogle:cModelMimo )
+      oChatMimo:SetTemperature( 0.3 )
+      cStatus := "MIMO " + oChatGoogle:cModelMimo
+   ELSE
+      IF EMPTY( oChatGoogle:cApiKey )
+         MsgStop( "No se encontro API Key de Gemini. Configure config_google.json" )
+         oChatGoogle:End()
+         RETURN NIL
+      ENDIF
+      oChatMimo   := NIL
+      oChatGemini := oChatGoogle:Gemini()
+      oChatGemini:SetModel( oChatGoogle:cModelGemini )
+      oChatGemini:SetTemperature( 0.3 )
+      cStatus := "GEMINI " + oChatGoogle:cModelGemini
+   ENDIF
 
    // Inicializar historial
    aChatMensajes := {}
@@ -93,22 +118,22 @@ FUNCTION GEMINI_CHATBOT( cPrompt, cFuentes, cTitulo )
    DEFINE FONT oFontHeader NAME "Tahoma" SIZE 0, -14 BOLD
    DEFINE FONT oFontBtn    NAME "Tahoma" SIZE 0, -11 BOLD
 
-   // Ventana MDI
-   DpMdi( cTitulo, "oChatBot", "" )
-   oChatBot:Windows( 0, 0, nAltoWin, nAnchoWin )
+   // Ventana NATIVA FiveWin (sin TMDI/DpMdi)
+   DEFINE WINDOW oChatWnd TITLE cTitulo ;
+      FROM 0, 0 TO nAltoWin, nAnchoWin PIXEL
 
    // Header verde
    @ 0, 0 SAY "  " + cTitulo SIZE nAnchoWin, 55 PIXEL ;
-       OF oChatBot:oWnd FONT oFontHeader ;
+       OF oChatWnd FONT oFontHeader ;
        COLOR CLR_WHITE, CLR_HEADER_BG
 
-   @ 12, nAnchoWin - 180 SAY oChatStatus PROMPT "En linea" ;
-       SIZE 120, 20 PIXEL ;
-       OF oChatBot:oWnd FONT oFontTime ;
+   @ 12, nAnchoWin - 260 SAY oChatStatus PROMPT cStatus ;
+       SIZE 200, 20 PIXEL ;
+       OF oChatWnd FONT oFontTime ;
        COLOR RGB(0xC8,0xFF,0xC8), CLR_HEADER_BG
 
    // Browse de mensajes
-   oChatBrw := TXBrowse():New( oChatBot:oWnd )
+   oChatBrw := TXBrowse():New( oChatWnd )
    oChatBrw:SetArray( aChatDisplay, .F. )
    oChatBrw:lRecordSelector := .F.
    oChatBrw:lHeader         := .F.
@@ -138,75 +163,78 @@ FUNCTION GEMINI_CHATBOT( cPrompt, cFuentes, cTitulo )
 
    // Separador
    @ nRowInput - 5, 0 TO nRowInput - 3, nAnchoWin PIXEL ;
-       OF oChatBot:oWnd COLOR CLR_HEADER_BG, CLR_HEADER_BG
+       OF oChatWnd COLOR CLR_HEADER_BG, CLR_HEADER_BG
 
    // Input de texto
    oChatInput := TGet():New( nRowInput, 5, ;
        { |u| If( PCount()==0, cChatInput, cChatInput:=u ) }, ;
-       oChatBot:oWnd, ;
+       oChatWnd, ;
        nAnchoWin - 110, 20, ;
        NIL, NIL, ;
        CLR_USER_TXT, CLR_INPUT_BG, ;
        oFontInput, .T. )
 
-   // Botones con TButton directo
+   // Boton Enviar
    TButton():New( nRowInput, nAnchoWin - 100, "Enviar", ;
-       oChatBot:oWnd, {|| ChatbotEnviar() }, ;
+       oChatWnd, {|| ChatbotEnviar() }, ;
        90, 20, oFontBtn, .F., .T., .F., NIL, NIL, .T. )
 
-   // Barra inferior
+   // Barra inferior (nativa, sin oDp)
    @ nAltoWin - 15, 0 TO nAltoWin, nAnchoWin PIXEL ;
-       OF oChatBot:oWnd
+       OF oChatWnd
 
    TButton():New( nAltoWin - 13, 5, "Adjuntar", ;
-       oChatBot:oWnd, {|| ChatbotAdjuntar() }, ;
+       oChatWnd, {|| ChatbotAdjuntar() }, ;
        80, 12, oFontTime, .F., .T., .F., NIL, NIL, .T. )
 
    TButton():New( nAltoWin - 13, 90, "Limpiar", ;
-       oChatBot:oWnd, {|| ChatbotLimpiar() }, ;
+       oChatWnd, {|| ChatbotLimpiar() }, ;
        80, 12, oFontTime, .F., .T., .F., NIL, NIL, .T. )
 
-   TButton():New( nAltoWin - 13, 175, "Config", ;
-       oChatBot:oWnd, {|| ChatbotConfig() }, ;
+   TButton():New( nAltoWin - 13, 175, "IA", ;
+       oChatWnd, {|| ChatbotCambiarIA() }, ;
        60, 12, oFontTime, .F., .T., .F., NIL, NIL, .T. )
 
-   // Activar
-   oChatBot:Activate( {|| ChatbotInit() } )
+   TButton():New( nAltoWin - 13, 240, "Config", ;
+       oChatWnd, {|| ChatbotConfig() }, ;
+       60, 12, oFontTime, .F., .T., .F., NIL, NIL, .T. )
+
+   TButton():New( nAltoWin - 13, nAnchoWin - 70, "Cerrar", ;
+       oChatWnd, {|| oChatWnd:End() }, ;
+       60, 12, oFontTime, .F., .T., .F., NIL, NIL, .T. )
+
+   // Activar ventana nativa
+   ACTIVATE WINDOW oChatWnd
 
    // Cleanup
    oChatGoogle:End()
    oChatGoogle := NIL
    oChatGemini := NIL
+   oChatMimo   := NIL
 
 RETURN NIL
 
 //----------------------------------------------------------------------------//
-// TOOLBAR INIT
+// TRADUCIR historial a formato OpenAI (MiMo): role model->assistant, text->content
 //----------------------------------------------------------------------------//
 
-STATIC FUNCTION ChatbotInit()
+STATIC FUNCTION ChatbotToMimo( aMsgs )
 
-   LOCAL oCursor, oBar, oBtn, oFont
+   LOCAL aOut := {}, n, cRole, cText
 
-   DEFINE CURSOR oCursor HAND
-   DEFINE BUTTONBAR oBar SIZE 42+20, 42+20 OF oChatBot:oWnd 3D CURSOR oCursor
+   FOR n := 1 TO LEN( aMsgs )
+      cRole := TGoogleJSON():Get( aMsgs[n], "role", "user" )
+      cText := TGoogleJSON():Get( aMsgs[n], "text", "" )
+      IF cRole == "model"
+         cRole := "assistant"
+      ENDIF
+      AADD( aOut, { {"role",cRole}, {"content",cText} } )
+   NEXT
 
-   DEFINE FONT oFont  NAME "Tahoma"   SIZE 0, -11 BOLD
-
-   DEFINE BUTTON oBtn;
-          OF oBar;
-          NOBORDER;
-          FONT oFont;
-          FILENAME "BITMAPS\XSALIR.BMP";
-          TOP PROMPT "Cerrar";
-          ACTION oChatBot:End()
-
-   oBar:SetColor( CLR_BLACK, oDp:nGris )
-
-RETURN .T.
+RETURN aOut
 
 //----------------------------------------------------------------------------//
-// ENVIAR MENSAJE
+// ENVIAR MENSAJE (segun proveedor activo)
 //----------------------------------------------------------------------------//
 
 STATIC FUNCTION ChatbotEnviar()
@@ -233,10 +261,14 @@ STATIC FUNCTION ChatbotEnviar()
    oChatStatus:SetColor( RGB(0xFF,0xFF,0x00), CLR_HEADER_BG )
    oChatStatus:SetText( " Procesando..." )
 
-   // Llamar a Gemini
+   // Llamar a la IA activa
    cRespuesta := ""
    BEGIN SEQUENCE
-      cRespuesta := oChatGemini:Chat( aChatMensajes )
+      IF cChatProvider == "MIMO"
+         cRespuesta := oChatMimo:Chat( ChatbotToMimo( aChatMensajes ) )
+      ELSE
+         cRespuesta := oChatGemini:Chat( aChatMensajes )
+      ENDIF
    RECOVER USING oError
       cRespuesta := "ERROR: " + oError:description
    END SEQUENCE
@@ -335,19 +367,63 @@ STATIC FUNCTION ChatbotLimpiar()
 RETURN NIL
 
 //----------------------------------------------------------------------------//
-// CONFIGURAR MODELO
+// CAMBIAR PROVEEDOR IA (GEMINI <-> MIMO)
+//----------------------------------------------------------------------------//
+
+STATIC FUNCTION ChatbotCambiarIA()
+
+   LOCAL cNuevo
+
+   IF cChatProvider == "MIMO"
+      cNuevo := "GEMINI"
+      IF EMPTY( oChatGoogle:cApiKey )
+         MsgStop( "No hay API Key de Gemini configurada" )
+         RETURN NIL
+      ENDIF
+      oChatMimo:End()
+      oChatMimo   := NIL
+      oChatGemini := oChatGoogle:Gemini()
+      oChatGemini:SetModel( oChatGoogle:cModelGemini )
+      oChatGemini:SetTemperature( 0.3 )
+      oChatStatus:SetText( "GEMINI " + oChatGoogle:cModelGemini )
+   ELSE
+      cNuevo := "MIMO"
+      IF EMPTY( oChatGoogle:cApiKeyMimo )
+         MsgStop( "No hay API Key de MiMo. Use MIMO_SETAPIKEY( 'sk-...' )" )
+         RETURN NIL
+      ENDIF
+      oChatGemini:End()
+      oChatGemini := NIL
+      oChatMimo   := oChatGoogle:Mimo()
+      oChatMimo:SetModel( oChatGoogle:cModelMimo )
+      oChatMimo:SetTemperature( 0.3 )
+      oChatStatus:SetText( "MIMO " + oChatGoogle:cModelMimo )
+   ENDIF
+
+   cChatProvider := cNuevo
+
+RETURN NIL
+
+//----------------------------------------------------------------------------//
+// CONFIGURAR MODELO (proveedor activo)
 //----------------------------------------------------------------------------//
 
 STATIC FUNCTION ChatbotConfig()
 
    LOCAL oDlg, oGetModel, oGetTemp, oGetTokens
-   LOCAL cModel, nTemp, nTokens
+   LOCAL cModel, nTemp, nTokens, oActive
 
-   cModel  := oChatGemini:cModel
-   nTemp   := oChatGemini:nTemperature
-   nTokens := oChatGemini:nMaxOutputTokens
+   IF cChatProvider == "MIMO"
+      oActive := oChatMimo
+   ELSE
+      oActive := oChatGemini
+   ENDIF
 
-   DEFINE DIALOG oDlg TITLE "Configuracion Gemini" FROM 0,0 TO 18,50 PIXEL
+   cModel  := oActive:cModel
+   nTemp   := oActive:nTemperature
+   nTokens := oActive:nMaxOutputTokens
+
+   DEFINE DIALOG oDlg TITLE "Configuracion IA (" + cChatProvider + ")" FROM 0,0 TO 18,50 PIXEL
 
    @ 1, 1 SAY "Modelo:" SIZE 60, 15 PIXEL OF oDlg
    @ 1, 62 GET oGetModel VAR cModel SIZE 180, 15 PIXEL OF oDlg
@@ -358,9 +434,10 @@ STATIC FUNCTION ChatbotConfig()
    @ 5, 1 SAY "Max Tokens:" SIZE 60, 15 PIXEL OF oDlg
    @ 5, 62 GET oGetTokens VAR nTokens SIZE 50, 15 PIXEL OF oDlg PICTURE "99999"
 
-   @ 7, 62 BUTTON "Aplicar" ACTION ( oChatGemini:SetModel( cModel ), ;
-       oChatGemini:SetTemperature( nTemp ), ;
-       oChatGemini:SetMaxTokens( nTokens ), ;
+   @ 7, 62 BUTTON "Aplicar" ACTION ( oActive:SetModel( cModel ), ;
+       oActive:SetTemperature( nTemp ), ;
+       oActive:SetMaxTokens( nTokens ), ;
+       oChatStatus:SetText( cChatProvider + " " + cModel ), ;
        oDlg:End() ) SIZE 60, 18 PIXEL OF oDlg
 
    @ 7, 125 BUTTON "Cancelar" ACTION oDlg:End() SIZE 60, 18 PIXEL OF oDlg
@@ -370,42 +447,59 @@ STATIC FUNCTION ChatbotConfig()
 RETURN NIL
 
 //----------------------------------------------------------------------------//
-// CONSULTA DIRECTA SIN INTERFAZ
+// CONSULTA DIRECTA SIN INTERFAZ (cProvider: "GEMINI" / "MIMO")
 //----------------------------------------------------------------------------//
 
-FUNCTION GEMINI_CONSULTA( cMensaje, cPrompt, cFuentes )
+FUNCTION GEMINI_CONSULTA( cMensaje, cPrompt, cFuentes, cProvider )
 
-   LOCAL oGoogle, oGemini, aMensajes, cRespuesta
+   LOCAL oGoogle, oGemini, oMimo, aMensajes, cRespuesta
 
-   DEFAULT cPrompt  := "Eres un asistente juridico experto en derecho venezolano."
-   DEFAULT cFuentes := ""
+   DEFAULT cPrompt   := "Eres un asistente juridico experto en derecho venezolano."
+   DEFAULT cFuentes  := ""
+   DEFAULT cProvider := "GEMINI"
 
    aMensajes  := {}
    cRespuesta := ""
 
    oGoogle := TGoogle():New()
-   IF EMPTY( oGoogle:cApiKey )
-      RETURN "ERROR: No hay API Key configurada"
+
+   IF UPPER( ALLTRIM( cProvider ) ) == "MIMO"
+      IF EMPTY( oGoogle:cApiKeyMimo )
+         oGoogle:End()
+         RETURN "ERROR: No hay API Key de MiMo configurada"
+      ENDIF
+      oMimo := oGoogle:Mimo()
+      oMimo:SetTemperature( 0.3 )
+      AADD( aMensajes, {{"role","system"},{"content", "INSTRUCCION: " + cPrompt }} )
+      IF !EMPTY( cFuentes )
+         AADD( aMensajes, {{"role","user"},{"content", "FUENTES: " + cFuentes }} )
+      ENDIF
+      AADD( aMensajes, {{"role","user"},{"content", cMensaje }} )
+      BEGIN SEQUENCE
+         cRespuesta := oMimo:Chat( aMensajes )
+      RECOVER USING oError
+         cRespuesta := "ERROR: " + oError:description
+      END SEQUENCE
+   ELSE
+      IF EMPTY( oGoogle:cApiKey )
+         oGoogle:End()
+         RETURN "ERROR: No hay API Key configurada"
+      ENDIF
+      oGemini := oGoogle:Gemini()
+      oGemini:SetTemperature( 0.3 )
+      AADD( aMensajes, {{"role","user"},{"text", "INSTRUCCION: " + cPrompt }} )
+      AADD( aMensajes, {{"role","model"},{"text", "Entendido." }} )
+      IF !EMPTY( cFuentes )
+         AADD( aMensajes, {{"role","user"},{"text", "FUENTES: " + cFuentes }} )
+         AADD( aMensajes, {{"role","model"},{"text", "Fuentes recibidas." }} )
+      ENDIF
+      AADD( aMensajes, {{"role","user"},{"text", cMensaje }} )
+      BEGIN SEQUENCE
+         cRespuesta := oGemini:Chat( aMensajes )
+      RECOVER USING oError
+         cRespuesta := "ERROR: " + oError:description
+      END SEQUENCE
    ENDIF
-
-   oGemini := oGoogle:Gemini()
-   oGemini:SetTemperature( 0.3 )
-
-   AADD( aMensajes, {{"role","user"},{"text", "INSTRUCCION: " + cPrompt }} )
-   AADD( aMensajes, {{"role","model"},{"text", "Entendido." }} )
-
-   IF !EMPTY( cFuentes )
-      AADD( aMensajes, {{"role","user"},{"text", "FUENTES: " + cFuentes }} )
-      AADD( aMensajes, {{"role","model"},{"text", "Fuentes recibidas." }} )
-   ENDIF
-
-   AADD( aMensajes, {{"role","user"},{"text", cMensaje }} )
-
-   BEGIN SEQUENCE
-      cRespuesta := oGemini:Chat( aMensajes )
-   RECOVER USING oError
-      cRespuesta := "ERROR: " + oError:description
-   END SEQUENCE
 
    oGoogle:End()
 
