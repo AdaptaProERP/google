@@ -232,7 +232,7 @@ return .T.
 
 METHOD SaveTokens() CLASS TGoogleAuth
 
-   local hTokens := {=>}
+   local hTokens := Hash()
 
    if !Empty( ::cAccessToken ) .OR. !Empty( ::cRefreshToken )
       hTokens[ "access_token"  ] := ::cAccessToken
@@ -347,6 +347,12 @@ METHOD OpenChromeForAuth() CLASS TGoogleAuth
    endif
 
 return nil
+
+//----------------------------------------------------------------------------//
+
+METHOD GetAuthUrlForBrowser() CLASS TGoogleAuth
+
+return ::GetAuthUrl()
 
 //----------------------------------------------------------------------------//
 

@@ -57,7 +57,7 @@ return cResult
 METHOD Get( hJson, cKey, uDefault ) CLASS TGoogleJSON
 
    if hJson != NIL .AND. ValType( hJson ) == "H"
-      if hb_HHasKey( hJson, cKey )
+      if HHasKey( hJson, cKey )
          return hJson[ cKey ]
       endif
    endif
@@ -81,7 +81,7 @@ METHOD GetNested( hJson, cPath, uDefault ) CLASS TGoogleJSON
 
    for n := 1 to Len( aKeys )
       cKey := aKeys[ n ]
-      if ValType( hCurrent ) == "H" .AND. hb_HHasKey( hCurrent, cKey )
+      if ValType( hCurrent ) == "H" .AND. HHasKey( hCurrent, cKey )
          hCurrent := hCurrent[ cKey ]
       else
          return uDefault
@@ -95,7 +95,7 @@ return hCurrent
 METHOD HasKey( hJson, cKey ) CLASS TGoogleJSON
 
    if hJson != NIL .AND. ValType( hJson ) == "H"
-      return hb_HHasKey( hJson, cKey )
+      return HHasKey( hJson, cKey )
    endif
 
 return .F.

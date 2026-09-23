@@ -49,6 +49,8 @@ CLASS TGoogle
    METHOD LoadConfig()
    METHOD SaveConfig()
    METHOD ShowConfig()
+   METHOD SetApiKey( cKey )
+   METHOD ResetApiKey()
 
    // OAuth
    METHOD Authenticate()
@@ -175,11 +177,21 @@ METHOD LoadConfig() CLASS TGoogle
    local cFile := TGOOGLE_CONFIG_FILE
    local hConfig
 
+   // 1. Intentar desde oDp:GEMINIAPIKEY (Adaptapro ERP)
+   if Type( "oDp" ) == "O" .AND. __ObjHasData( oDp, "GEMINIAPIKEY" )
+      if !EMPTY( oDp:GEMINIAPIKEY )
+         ::cApiKey := oDp:GEMINIAPIKEY
+      endif
+   endif
+
+   // 2. Intentar desde config JSON
    if FILE( cFile )
       hConfig := TGoogleJSON():FromFile( cFile )
 
       if hConfig != NIL
-         ::cApiKey       := TGoogleJSON():Get( hConfig, "api_key", "" )
+         if EMPTY( ::cApiKey )
+            ::cApiKey       := TGoogleJSON():Get( hConfig, "api_key", "" )
+         endif
          ::cClientId     := TGoogleJSON():Get( hConfig, "client_id", "" )
          ::cClientSecret := TGoogleJSON():Get( hConfig, "client_secret", "" )
          ::cCuentaGmail  := TGoogleJSON():Get( hConfig, "cuenta_gmail", "" )
@@ -195,7 +207,7 @@ return nil
 
 METHOD SaveConfig() CLASS TGoogle
 
-   local hConfig := {=>}
+   local hConfig := Hash()
 
    hConfig[ "api_key"       ] := ::cApiKey
    hConfig[ "client_id"     ] := ::cClientId
@@ -220,6 +232,50 @@ METHOD ShowConfig() CLASS TGoogle
    ? "  Debug:        " + IF( ::lDebug, "ON", "OFF" )
 
 return nil
+
+//----------------------------------------------------------------------------//
+// SetApiKey: cambia la key en memoria + oDp:GEMINIAPIKEY + JSON
+//----------------------------------------------------------------------------//
+
+METHOD SetApiKey( cKey ) CLASS TGoogle
+
+   if cKey == NIL
+      return .F.
+   endif
+
+   ::cApiKey := AllTrim( cKey )
+
+   // Sincronizar con oDp:GEMINIAPIKEY (Adaptapro ERP)
+   BEGIN SEQUENCE
+      if Type( "oDp" ) == "O"
+         oDp:GEMINIAPIKEY := ::cApiKey
+      endif
+   RECOVER
+   END SEQUENCE
+
+   // Persistir en config JSON
+   ::SaveConfig()
+
+return .T.
+
+//----------------------------------------------------------------------------//
+// ResetApiKey: borra la key en memoria + oDp:GEMINIAPIKEY + JSON
+//----------------------------------------------------------------------------//
+
+METHOD ResetApiKey() CLASS TGoogle
+
+   ::cApiKey := ""
+
+   BEGIN SEQUENCE
+      if Type( "oDp" ) == "O"
+         oDp:GEMINIAPIKEY := ""
+      endif
+   RECOVER
+   END SEQUENCE
+
+   ::SaveConfig()
+
+return .T.
 
 //----------------------------------------------------------------------------//
 
@@ -371,6 +427,44 @@ METHOD HttpRequest( cMethod, cUrl, cBody, aHeaders ) CLASS TGoogle
    endcase
 
 return ""
+
+//----------------------------------------------------------------------------//
+// Funciones de cambio/reset de API key de Gemini
+// Uso: GEMINI_SETAPIKEY( "AIza..." ) / GEMINI_RESETAPIKEY()
+// Prioridad de lectura: oDp:GEMINIAPIKEY > config_google.json
+//----------------------------------------------------------------------------//
+
+FUNCTION GEMINI_SETAPIKEY( cKey )
+
+   local oGoogle
+
+   if cKey == NIL .OR. Empty( cKey )
+      return .F.
+   endif
+
+   oGoogle := TGoogle():New()
+   oGoogle:SetApiKey( cKey )
+   oGoogle:End()
+
+return .T.
+
+FUNCTION GEMINI_RESETAPIKEY()
+
+   local oGoogle := TGoogle():New()
+
+   oGoogle:ResetApiKey()
+   oGoogle:End()
+
+return .T.
+
+FUNCTION GEMINI_GETAPIKEY()
+
+   local oGoogle := TGoogle():New()
+   local cKey := oGoogle:cApiKey
+
+   oGoogle:End()
+
+return cKey
 
 //----------------------------------------------------------------------------//
 // EOF

@@ -2,7 +2,7 @@
 // TGoogleGemini - Google Gemini API (Generative Language)
 // Generación de texto, chat, análisis
 // Compatible: xHarbour + Harbour 3.2 + FiveWin 2.4
-// Modelo: gemini-2.5-flash-lite
+// Modelo: gemini-3.8-flash
 //----------------------------------------------------------------------------//
 
 #include "FiveWin.ch"
@@ -46,7 +46,7 @@ ENDCLASS
 METHOD New( oGoogle ) CLASS TGoogleGemini
 
    ::oGoogle       := oGoogle
-   ::cModel        := "gemini-2.5-flash-lite"
+   ::cModel        := "gemini-3.8-flash"
    ::cApiKey       := oGoogle:cApiKey
    ::cServer       := oGoogle:cServerGemini
    ::nTemperature  := 0.7

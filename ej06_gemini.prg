@@ -18,7 +18,7 @@ FUNCTION Main()
 
    ? "============================================================"
    ? "  EJEMPLO 06: Google Gemini API"
-   ? "  Modelo: gemini-2.5-flash-lite"
+   ? "  Modelo: gemini-3.8-flash"
    ? "============================================================"
    ?
 
@@ -37,7 +37,7 @@ FUNCTION Main()
    oGemini:SetModel( "gemini-2.0-flash" )
    cRespuesta := oGemini:GenerateText( "Di hola" )
    ? "  Respuesta: " + cRespuesta
-   oGemini:SetModel( "gemini-2.5-flash-lite" )
+   oGemini:SetModel( "gemini-3.8-flash" )
    ?
 
    // 3. TEMPERATURA
