@@ -5,13 +5,9 @@
 //----------------------------------------------------------------------------//
 
 #include "FiveWin.ch"
+#include "TGOOGLE.CH"
 
-// Google OAuth2 endpoints
-#define GOOGLE_AUTH_URL     "https://accounts.google.com/o/oauth2/v2/auth"
-#define GOOGLE_TOKEN_URL    "https://oauth2.googleapis.com/token"
-#define GOOGLE_REVOKE_URL   "https://oauth2.googleapis.com/revoke"
-
-// Scopes de Google
+// Scopes de Google (alias locales)
 #define SCOPE_CALENDAR      "https://www.googleapis.com/auth/calendar"
 #define SCOPE_DRIVE         "https://www.googleapis.com/auth/drive"
 #define SCOPE_GMAIL         "https://www.googleapis.com/auth/gmail.modify"
