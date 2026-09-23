@@ -1,131 +1,211 @@
-//----------------------------------------------------------------------------//
-// TGoogleJSON - Wrapper para JSON encode/decode
-// Compatible: xHarbour + Harbour 3.2 + FiveWin 2.4
-//----------------------------------------------------------------------------//
+ //----------------------------------------------------------------------------//
+ // TGoogleJSON - Wrapper para JSON encode/decode
+ // Compatible: xHarbour 0.82 (SIN harbour.dll) + Harbour 3.2 + FiveWin 2.4
+ //
+ // Modelo de datos: los objetos JSON se representan como arrays de pares:
+ //    { {"clave1", valor1}, {"clave2", valor2}, ... }
+ // Los arrays JSON se representan como arrays normales.
+ // No se usan hashes para que el EXE sea autocontenido (xHarbour 0.82
+ // solo trae hashes en harbour.dll).
+ //----------------------------------------------------------------------------//
 
-#include "FiveWin.ch"
+ #include "FiveWin.ch"
 
-//----------------------------------------------------------------------------//
+ //----------------------------------------------------------------------------//
 
-CLASS TGoogleJSON
+ CLASS TGoogleJSON
 
-   // Métodos de utilidad
-   METHOD Decode( cJson )
-   METHOD Encode( uValue )
-   METHOD Get( hJson, cKey, uDefault )
-   METHOD GetNested( hJson, cPath, uDefault )
-   METHOD HasKey( hJson, cKey )
-   METHOD ToFile( cFile, hJson )
-   METHOD FromFile( cFile )
+    // Métodos de utilidad
+    METHOD Decode( cJson )
+    METHOD Encode( uValue )
+    METHOD Get( aObj, cKey, uDefault )
+    METHOD Set( aObj, cKey, uValue )
+    METHOD GetNested( aObj, cPath, uDefault )
+    METHOD HasKey( aObj, cKey )
+    METHOD IsObj( aObj )
+    METHOD NewObj()
+    METHOD Pair( cKey, uValue )
+    METHOD ToFile( cFile, aObj )
+    METHOD FromFile( cFile )
 
-ENDCLASS
+ ENDCLASS
 
-//----------------------------------------------------------------------------//
+ //----------------------------------------------------------------------------//
 
-METHOD Decode( cJson ) CLASS TGoogleJSON
+ METHOD Decode( cJson ) CLASS TGoogleJSON
 
-   local hResult := NIL
+    local aResult := NIL
 
-   if !Empty( cJson )
-      BEGIN SEQUENCE
-         hb_JsonDecode( cJson, @hResult )
-      RECOVER
-         hResult := NIL
-      END
-   endif
+    if !Empty( cJson )
+       BEGIN SEQUENCE
+          hb_JsonDecode( cJson, @aResult )
+       RECOVER
+          aResult := NIL
+       END
+    endif
 
-return hResult
+ return aResult
 
-//----------------------------------------------------------------------------//
+ //----------------------------------------------------------------------------//
 
-METHOD Encode( uValue ) CLASS TGoogleJSON
+ METHOD Encode( uValue ) CLASS TGoogleJSON
 
-   local cResult := ""
+    local cResult := ""
 
-   if uValue != NIL
-      BEGIN SEQUENCE
-         cResult := hb_JsonEncode( uValue )
-      RECOVER
-         cResult := ""
-      END
-   endif
+    if uValue != NIL
+       BEGIN SEQUENCE
+          cResult := hb_JsonEncode( uValue )
+       RECOVER
+          cResult := ""
+       END
+    endif
 
-return cResult
+ return cResult
 
-//----------------------------------------------------------------------------//
+ //----------------------------------------------------------------------------//
+ // IsObj: .T. si es array de pares { {clave,valor}, ... } (objeto JSON)
+ //----------------------------------------------------------------------------//
 
-METHOD Get( hJson, cKey, uDefault ) CLASS TGoogleJSON
+ METHOD IsObj( aObj ) CLASS TGoogleJSON
 
-   if hJson != NIL .AND. ValType( hJson ) == "H"
-      if HHasKey( hJson, cKey )
-         return hJson[ cKey ]
-      endif
-   endif
+    local n
 
-return uDefault
+    if ValType( aObj ) != "A"
+       return .F.
+    endif
 
-//----------------------------------------------------------------------------//
+    if Len( aObj ) == 0
+       return .T.
+    endif
 
-METHOD GetNested( hJson, cPath, uDefault ) CLASS TGoogleJSON
+    for n := 1 to Len( aObj )
+       if ValType( aObj[n] ) != "A" .OR. Len( aObj[n] ) != 2 .OR. ;
+          ValType( aObj[n][1] ) != "C"
+          return .F.
+       endif
+    next
 
-   local aKeys, hCurrent, n, cKey
+ return .T.
 
-   DEFAULT uDefault := NIL
+ //----------------------------------------------------------------------------//
 
-   if hJson == NIL .OR. ValType( hJson ) != "H"
-      return uDefault
-   endif
+ METHOD Get( aObj, cKey, uDefault ) CLASS TGoogleJSON
 
-   aKeys   := hb_ATokens( cPath, "." )
-   hCurrent := hJson
+    local n
 
-   for n := 1 to Len( aKeys )
-      cKey := aKeys[ n ]
-      if ValType( hCurrent ) == "H" .AND. HHasKey( hCurrent, cKey )
-         hCurrent := hCurrent[ cKey ]
-      else
-         return uDefault
-      endif
-   next
+    if aObj != NIL .AND. ValType( aObj ) == "A"
+       for n := 1 to Len( aObj )
+          if ValType( aObj[n] ) == "A" .AND. Len( aObj[n] ) == 2 .AND. ;
+             ValType( aObj[n][1] ) == "C" .AND. aObj[n][1] == cKey
+             return aObj[n][2]
+          endif
+       next
+    endif
 
-return hCurrent
+ return uDefault
 
-//----------------------------------------------------------------------------//
+ //----------------------------------------------------------------------------//
+ // Set: actualiza la clave si existe, la agrega si no (por referencia)
+ //----------------------------------------------------------------------------//
 
-METHOD HasKey( hJson, cKey ) CLASS TGoogleJSON
+ METHOD Set( aObj, cKey, uValue ) CLASS TGoogleJSON
 
-   if hJson != NIL .AND. ValType( hJson ) == "H"
-      return HHasKey( hJson, cKey )
-   endif
+    local n
 
-return .F.
+    if aObj != NIL .AND. ValType( aObj ) == "A"
+       for n := 1 to Len( aObj )
+          if ValType( aObj[n] ) == "A" .AND. Len( aObj[n] ) == 2 .AND. ;
+             ValType( aObj[n][1] ) == "C" .AND. aObj[n][1] == cKey
+             aObj[n][2] := uValue
+             return aObj
+          endif
+       next
+       AADD( aObj, { cKey, uValue } )
+    endif
 
-//----------------------------------------------------------------------------//
+ return aObj
 
-METHOD ToFile( cFile, hJson ) CLASS TGoogleJSON
+ //----------------------------------------------------------------------------//
 
-   local cJson := ::Encode( hJson )
+ METHOD GetNested( aObj, cPath, uDefault ) CLASS TGoogleJSON
 
-   if !Empty( cJson )
-      MEMOWRIT( cFile, cJson )
-   endif
+    local aKeys, aCurrent, n, cKey
 
-return !Empty( cJson )
+    DEFAULT uDefault := NIL
 
-//----------------------------------------------------------------------------//
+    if aObj == NIL .OR. !::IsObj( aObj )
+       return uDefault
+    endif
 
-METHOD FromFile( cFile ) CLASS TGoogleJSON
+    aKeys    := hb_ATokens( cPath, "." )
+    aCurrent := aObj
 
-   local cJson, hResult := NIL
+    for n := 1 to Len( aKeys )
+       cKey := aKeys[ n ]
+       if ::IsObj( aCurrent ) .AND. ::HasKey( aCurrent, cKey )
+          aCurrent := ::Get( aCurrent, cKey )
+       else
+          return uDefault
+       endif
+    next
 
-   if FILE( cFile )
-      cJson := MEMOREAD( cFile )
-      if !Empty( cJson )
-         hResult := ::Decode( cJson )
-      endif
-   endif
+ return aCurrent
 
-return hResult
+ //----------------------------------------------------------------------------//
 
-//----------------------------------------------------------------------------//
-// EOF
+ METHOD HasKey( aObj, cKey ) CLASS TGoogleJSON
+
+    local n
+
+    if aObj != NIL .AND. ValType( aObj ) == "A"
+       for n := 1 to Len( aObj )
+          if ValType( aObj[n] ) == "A" .AND. Len( aObj[n] ) == 2 .AND. ;
+             ValType( aObj[n][1] ) == "C" .AND. aObj[n][1] == cKey
+             return .T.
+          endif
+       next
+    endif
+
+ return .F.
+
+ //----------------------------------------------------------------------------//
+ // NewObj: objeto vacio. Pair: par {clave,valor} para construir literales.
+ //----------------------------------------------------------------------------//
+
+ METHOD NewObj() CLASS TGoogleJSON
+
+ return {}
+
+ METHOD Pair( cKey, uValue ) CLASS TGoogleJSON
+
+ return { cKey, uValue }
+
+ //----------------------------------------------------------------------------//
+
+ METHOD ToFile( cFile, aObj ) CLASS TGoogleJSON
+
+    local cJson := ::Encode( aObj )
+
+    if !Empty( cJson )
+       MEMOWRIT( cFile, cJson )
+    endif
+
+ return !Empty( cJson )
+
+ //----------------------------------------------------------------------------//
+
+ METHOD FromFile( cFile ) CLASS TGoogleJSON
+
+    local cJson, aResult := NIL
+
+    if FILE( cFile )
+       cJson := MEMOREAD( cFile )
+       if !Empty( cJson )
+          aResult := ::Decode( cJson )
+       endif
+    endif
+
+ return aResult
+
+ //----------------------------------------------------------------------------//
+ // EOF

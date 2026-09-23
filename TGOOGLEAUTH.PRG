@@ -146,10 +146,10 @@ METHOD ExchangeCode( cCode ) CLASS TGoogleAuth
    hJson := TGoogleJSON():Decode( cResponse )
 
    if hJson != NIL .AND. TGoogleJSON():HasKey( hJson, "access_token" )
-      ::cAccessToken  := hJson[ "access_token" ]
-      ::cRefreshToken := hJson[ "refresh_token" ]
-      ::cTokenType    := hJson[ "token_type" ]
-      ::nExpiresIn    := hJson[ "expires_in" ]
+      ::cAccessToken  := TGoogleJSON():Get( hJson, "access_token", "" )
+      ::cRefreshToken := TGoogleJSON():Get( hJson, "refresh_token", "" )
+      ::cTokenType    := TGoogleJSON():Get( hJson, "token_type", "" )
+      ::nExpiresIn    := TGoogleJSON():Get( hJson, "expires_in", 0 )
       ::dTokenDate    := DATE()
       ::cTokenTime    := TIME()
       ::lAuthenticated := .T.
@@ -159,10 +159,10 @@ METHOD ExchangeCode( cCode ) CLASS TGoogleAuth
    else
       ::cLastError := "Error intercambiando código"
       if hJson != NIL .AND. TGoogleJSON():HasKey( hJson, "error" )
-         ::cLastError := hJson[ "error" ]
-         if ValType( hJson[ "error" ] ) == "H" .AND. ;
-            TGoogleJSON():HasKey( hJson["error"], "description" )
-            ::cLastError := hJson["error"]["description"]
+         ::cLastError := TGoogleJSON():Get( hJson, "error", "" )
+         if TGoogleJSON():IsObj( TGoogleJSON():Get( hJson, "error" ) ) .AND. ;
+            TGoogleJSON():HasKey( TGoogleJSON():Get( hJson, "error" ), "description" )
+            ::cLastError := TGoogleJSON():Get( TGoogleJSON():Get( hJson, "error" ), "description", "" )
          endif
       endif
    endif
@@ -194,9 +194,9 @@ METHOD RefreshAccessToken() CLASS TGoogleAuth
    hJson := TGoogleJSON():Decode( cResponse )
 
    if hJson != NIL .AND. TGoogleJSON():HasKey( hJson, "access_token" )
-      ::cAccessToken  := hJson[ "access_token" ]
-      ::cTokenType    := hJson[ "token_type" ]
-      ::nExpiresIn    := hJson[ "expires_in" ]
+      ::cAccessToken  := TGoogleJSON():Get( hJson, "access_token", "" )
+      ::cTokenType    := TGoogleJSON():Get( hJson, "token_type", "" )
+      ::nExpiresIn    := TGoogleJSON():Get( hJson, "expires_in", 0 )
       ::dTokenDate    := DATE()
       ::cTokenTime    := TIME()
       ::lAuthenticated := .T.
@@ -232,16 +232,16 @@ return .T.
 
 METHOD SaveTokens() CLASS TGoogleAuth
 
-   local hTokens := Hash()
+   local hTokens := {}
 
    if !Empty( ::cAccessToken ) .OR. !Empty( ::cRefreshToken )
-      hTokens[ "access_token"  ] := ::cAccessToken
-      hTokens[ "refresh_token" ] := ::cRefreshToken
-      hTokens[ "token_type"    ] := ::cTokenType
-      hTokens[ "expires_in"    ] := ::nExpiresIn
-      hTokens[ "token_date"    ] := DTOC( ::dTokenDate )
-      hTokens[ "token_time"    ] := ::cTokenTime
-      hTokens[ "client_id"     ] := ::cClientId
+      TGoogleJSON():Set( hTokens, "access_token", ::cAccessToken )
+      TGoogleJSON():Set( hTokens, "refresh_token", ::cRefreshToken )
+      TGoogleJSON():Set( hTokens, "token_type", ::cTokenType )
+      TGoogleJSON():Set( hTokens, "expires_in", ::nExpiresIn )
+      TGoogleJSON():Set( hTokens, "token_date", DTOC( ::dTokenDate ) )
+      TGoogleJSON():Set( hTokens, "token_time", ::cTokenTime )
+      TGoogleJSON():Set( hTokens, "client_id", ::cClientId )
 
       TGoogleJSON():ToFile( ::cTokenFile, hTokens )
    endif

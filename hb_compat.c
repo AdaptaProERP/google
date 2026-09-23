@@ -1,6 +1,10 @@
 /*
  * HB_COMPAT.C - Funciones faltantes en xHarbour 0.82 para Google API
- * Compila con BCC55 + xHarbour 0.82
+ * Compila con BCC55 + xHarbour 0.82, SOLO libs estaticas (sin harbour.dll)
+ *
+ * Los objetos JSON se representan como arrays de pares:
+ *    { {"clave1", valor1}, {"clave2", valor2}, ... }
+ * Los arrays JSON como arrays normales. Sin hashes.
  */
 
 #include "hbapi.h"
@@ -9,44 +13,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
-
-/* xHarbour 0.82: HB_IT_HASH no esta en hbapi.h pero el runtime lo usa
-   en 0x0004 (mismo layout que Harbour, ver hueco en hbapi.h).
-   hashapi.h no se incluye directo porque PHB_BASEHASH no existe en 0.82. */
-#ifndef HB_IT_HASH
-#define HB_IT_HASH  ( ( USHORT ) 0x0004 )
-#endif
-#ifndef HB_IS_HASH
-#define HB_IS_HASH( p )  ( ( ( p )->type & ~HB_IT_BYREF ) == HB_IT_HASH )
-#endif
-#ifndef HB_GARBAGE_FUNC
-#define HB_GARBAGE_FUNC( x )
-#endif
-
-/* Forward declarations (existen en harbour.lib, faltan prototipos en headers) */
-extern PHB_ITEM hb_hashNew( PHB_ITEM pItem );
-extern BOOL hb_hashAddForward( PHB_ITEM pHash, ULONG ulPos, PHB_ITEM pKey, PHB_ITEM pValue );
-extern ULONG hb_hashLen( PHB_ITEM pHash );
-extern PHB_ITEM hb_hashGetValueAt( PHB_ITEM pHash, ULONG ulPos );
-extern PHB_ITEM hb_hashGetKeyAt( PHB_ITEM pHash, ULONG ulPos );
-extern BOOL hb_hashScan( PHB_ITEM pHash, PHB_ITEM pKey, ULONG * ulIndex );
-extern void hb_itemClear( PHB_ITEM pItem );
-extern void hb_itemReturnRelease( PHB_ITEM pItem );
-
-/* ============================================================ */
-/* HB_HHASKEY                                                   */
-/* ============================================================ */
-HB_FUNC( HB_HHASKEY )
-{
-   PHB_ITEM pHash = hb_param( 1, HB_IT_ANY );
-   PHB_ITEM pKey  = hb_param( 2, HB_IT_ANY );
-   ULONG ulIndex = 0;
-
-   if( pHash && pKey && HB_IS_HASH( pHash ) )
-      hb_retl( hb_hashScan( pHash, pKey, &ulIndex ) );
-   else
-      hb_retl( 0 );
-}
 
 /* ============================================================ */
 /* HB_TSTAMP - Timestamp ISO 8601                               */
@@ -67,7 +33,7 @@ HB_FUNC( HB_TSTAMP )
 }
 
 /* ============================================================ */
-/* HB_TTOSEC - Hora a segundos                                  */
+/* HB_TTOSEC - Hora HH:MM:SS a segundos                         */
 /* ============================================================ */
 HB_FUNC( HB_TTOSEC )
 {
@@ -173,7 +139,7 @@ HB_FUNC( HB_BASE64ENCODE )
 }
 
 /* ============================================================ */
-/* JUSTFILENAME                                                 */
+/* JUSTFILENAME - nombre de archivo de una ruta                 */
 /* ============================================================ */
 HB_FUNC( JUSTFILENAME )
 {
@@ -201,7 +167,7 @@ HB_FUNC( JUSTFILENAME )
 }
 
 /* ============================================================ */
-/* INPUTBOX - Stub                                              */
+/* INPUTBOX - retorna el default (modo desatendido)             */
 /* ============================================================ */
 HB_FUNC( INPUTBOX )
 {
@@ -210,8 +176,36 @@ HB_FUNC( INPUTBOX )
 }
 
 /* ============================================================ */
-/* HB_JSONENCODE                                                */
+/* HB_JSONENCODE - array de pares -> string JSON                */
+/* Objeto = array donde TODO elemento es {string, valor}.       */
+/* Vacio = {} (solo codificamos objetos de config/tokens).      */
 /* ============================================================ */
+static int json_is_obj( PHB_ITEM pItem )
+{
+   ULONG n, nCount;
+
+   if( pItem == NULL || ! HB_IS_ARRAY( pItem ) )
+      return 0;
+
+   nCount = hb_arrayLen( pItem );
+   if( nCount == 0 )
+      return 1;
+
+   for( n = 1; n <= nCount; n++ )
+   {
+      PHB_ITEM pEl = hb_arrayGetItemPtr( pItem, n );
+      if( pEl == NULL || ! HB_IS_ARRAY( pEl ) || hb_arrayLen( pEl ) != 2 )
+         return 0;
+      {
+         PHB_ITEM pK = hb_arrayGetItemPtr( pEl, 1 );
+         if( pK == NULL || ! HB_IS_STRING( pK ) )
+            return 0;
+      }
+   }
+
+   return 1;
+}
+
 static void json_encode_item( char ** ppBuf, ULONG * pnPos, ULONG * pnSize, PHB_ITEM pItem )
 {
    char szNum[ 64 ];
@@ -219,10 +213,9 @@ static void json_encode_item( char ** ppBuf, ULONG * pnPos, ULONG * pnSize, PHB_
 
    if( pItem == NULL || HB_IS_NIL( pItem ) )
    {
-      nLen = 4;
-      if( *pnPos + nLen >= *pnSize )
+      if( *pnPos + 4 >= *pnSize )
       {
-         *pnSize = ( *pnSize + nLen + 256 ) * 2;
+         *pnSize = ( *pnSize + 260 ) * 2;
          *ppBuf = ( char * ) hb_xrealloc( *ppBuf, *pnSize );
       }
       memcpy( *ppBuf + *pnPos, "null", 4 );
@@ -270,7 +263,7 @@ static void json_encode_item( char ** ppBuf, ULONG * pnPos, ULONG * pnSize, PHB_
       for( i = 0; i < nLen; i++ )
       {
          char c = cStr[ i ];
-         if( c == '"' )  { memcpy( *ppBuf + *pnPos, "\\\"", 2 ); *pnPos += 2; }
+         if( c == '"' )       { memcpy( *ppBuf + *pnPos, "\\\"", 2 ); *pnPos += 2; }
          else if( c == '\\' ) { memcpy( *ppBuf + *pnPos, "\\\\", 2 ); *pnPos += 2; }
          else if( c == '\n' ) { memcpy( *ppBuf + *pnPos, "\\n", 2 ); *pnPos += 2; }
          else if( c == '\r' ) { memcpy( *ppBuf + *pnPos, "\\r", 2 ); *pnPos += 2; }
@@ -279,22 +272,23 @@ static void json_encode_item( char ** ppBuf, ULONG * pnPos, ULONG * pnSize, PHB_
       }
       (*ppBuf)[ (*pnPos)++ ] = '"';
    }
-   else if( HB_IS_HASH( pItem ) )
+   else if( HB_IS_ARRAY( pItem ) && json_is_obj( pItem ) )
    {
-      ULONG n, nCount = hb_hashLen( pItem );
+      ULONG n, nCount = hb_arrayLen( pItem );
       (*ppBuf)[ (*pnPos)++ ] = '{';
       for( n = 1; n <= nCount; n++ )
       {
+         PHB_ITEM pPair = hb_arrayGetItemPtr( pItem, n );
          if( n > 1 ) (*ppBuf)[ (*pnPos)++ ] = ',';
-         json_encode_item( ppBuf, pnPos, pnSize, hb_hashGetKeyAt( pItem, n ) );
+         json_encode_item( ppBuf, pnPos, pnSize, hb_arrayGetItemPtr( pPair, 1 ) );
          (*ppBuf)[ (*pnPos)++ ] = ':';
-         json_encode_item( ppBuf, pnPos, pnSize, hb_hashGetValueAt( pItem, n ) );
+         json_encode_item( ppBuf, pnPos, pnSize, hb_arrayGetItemPtr( pPair, 2 ) );
       }
       (*ppBuf)[ (*pnPos)++ ] = '}';
    }
    else if( HB_IS_ARRAY( pItem ) )
    {
-      ULONG n, nCount = ( ULONG ) hb_arrayLen( pItem );
+      ULONG n, nCount = hb_arrayLen( pItem );
       (*ppBuf)[ (*pnPos)++ ] = '[';
       for( n = 1; n <= nCount; n++ )
       {
@@ -338,7 +332,8 @@ HB_FUNC( HB_JSONENCODE )
 }
 
 /* ============================================================ */
-/* HB_JSONDECODE                                                */
+/* HB_JSONDECODE - string JSON -> arrays / arrays de pares      */
+/* Uso PRG: hb_JsonDecode( cJson, @aResult )                    */
 /* ============================================================ */
 static PHB_ITEM json_decode_value( const char * cJson, ULONG * piPos, ULONG nLen );
 static PHB_ITEM json_decode_string( const char * cJson, ULONG * piPos, ULONG nLen );
@@ -400,16 +395,34 @@ static PHB_ITEM json_decode_string( const char * cJson, ULONG * piPos, ULONG nLe
    return pResult;
 }
 
+static PHB_ITEM json_arr_new( void )
+{
+   PHB_ITEM pArr = hb_itemNew( NULL );
+   hb_arrayNew( pArr, 0 );
+   return pArr;
+}
+
+static void json_arr_add( PHB_ITEM pArr, PHB_ITEM pVal )
+{
+   ULONG nCount = hb_arrayLen( pArr ) + 1;
+   hb_arraySize( pArr, nCount );
+   if( pVal )
+   {
+      hb_arraySet( pArr, nCount, pVal );
+      hb_itemRelease( pVal );
+   }
+}
+
 static PHB_ITEM json_decode_object( const char * cJson, ULONG * piPos, ULONG nLen )
 {
-   PHB_ITEM pHash;
-   PHB_ITEM pKey, pVal;
+   PHB_ITEM pObj;
+   PHB_ITEM pKey, pVal, pPair;
 
    json_skip_ws( cJson, piPos, nLen );
    if( *piPos >= nLen || cJson[ *piPos ] != '{' ) return NULL;
    ( *piPos )++;
 
-   pHash = hb_hashNew( NULL );
+   pObj = json_arr_new();
    json_skip_ws( cJson, piPos, nLen );
 
    while( *piPos < nLen && cJson[ *piPos ] != '}' )
@@ -422,19 +435,16 @@ static PHB_ITEM json_decode_object( const char * cJson, ULONG * piPos, ULONG nLe
 
       pVal = json_decode_value( cJson, piPos, nLen );
 
+      pPair = json_arr_new();
+      hb_arraySize( pPair, 2 );
+      hb_arraySet( pPair, 1, pKey );
+      hb_itemRelease( pKey );
       if( pVal )
       {
-         hb_hashAddForward( pHash, hb_hashLen( pHash ) + 1, pKey, pVal );
+         hb_arraySet( pPair, 2, pVal );
          hb_itemRelease( pVal );
       }
-      else
-      {
-         PHB_ITEM pNil = hb_itemNew( NULL );
-         hb_itemClear( pNil );
-         hb_hashAddForward( pHash, hb_hashLen( pHash ) + 1, pKey, pNil );
-         hb_itemRelease( pNil );
-      }
-      hb_itemRelease( pKey );
+      json_arr_add( pObj, pPair );
 
       json_skip_ws( cJson, piPos, nLen );
       if( *piPos < nLen && cJson[ *piPos ] == ',' ) ( *piPos )++;
@@ -442,32 +452,31 @@ static PHB_ITEM json_decode_object( const char * cJson, ULONG * piPos, ULONG nLe
    }
 
    if( *piPos < nLen ) ( *piPos )++;
-   return pHash;
+   return pObj;
 }
 
 static PHB_ITEM json_decode_array( const char * cJson, ULONG * piPos, ULONG nLen )
 {
    PHB_ITEM pArr;
-   ULONG nCount = 0;
    PHB_ITEM pVal;
 
    json_skip_ws( cJson, piPos, nLen );
    if( *piPos >= nLen || cJson[ *piPos ] != '[' ) return NULL;
    ( *piPos )++;
 
-   pArr = hb_itemNew( NULL );
-   hb_arrayNew( pArr, 0 );
+   pArr = json_arr_new();
    json_skip_ws( cJson, piPos, nLen );
 
    while( *piPos < nLen && cJson[ *piPos ] != ']' )
    {
       pVal = json_decode_value( cJson, piPos, nLen );
-      nCount++;
-      hb_arraySize( pArr, nCount );
       if( pVal )
+         json_arr_add( pArr, pVal );
+      else
       {
-         hb_arraySet( pArr, nCount, pVal );
-         hb_itemRelease( pVal );
+         PHB_ITEM pNil = hb_itemNew( NULL );
+         hb_itemClear( pNil );
+         json_arr_add( pArr, pNil );
       }
       json_skip_ws( cJson, piPos, nLen );
       if( *piPos < nLen && cJson[ *piPos ] == ',' ) ( *piPos )++;
@@ -508,7 +517,7 @@ static PHB_ITEM json_decode_value( const char * cJson, ULONG * piPos, ULONG nLen
    {
       char * cEnd;
       double dVal = strtod( cJson + *piPos, &cEnd );
-      *piPos = cEnd - cJson;
+      *piPos = ( ULONG )( cEnd - cJson );
       return hb_itemPutND( NULL, dVal );
    }
 

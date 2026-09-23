@@ -56,16 +56,16 @@ FUNCTION Main()
 
    // 4. CHAT MULTI-TURNO
    ? "--- [4] Chat ---"
-   AADD( aMessages, { "role" => "user", ;
-                      "text" => "Me llamo Juan y trabajo en Adaptapro" } )
+   AADD( aMessages, { {"role","user"}, ;
+                      {"text","Me llamo Juan y trabajo en Adaptapro"} } )
 
    cRespuesta := oGemini:Chat( aMessages )
-   ? "  [T1] Juan: " + aMessages[1]["text"]
+   ? "  [T1] Juan: " + TGoogleJSON():Get( aMessages[1], "text", "" )
    ? "  [T1] Gemini: " + cRespuesta
 
-   AADD( aMessages, { "role" => "model", "text" => cRespuesta } )
-   AADD( aMessages, { "role" => "user", ;
-                      "text" => "En que puedo usar Gemini en Adaptapro?" } )
+   AADD( aMessages, { {"role","model"}, {"text",cRespuesta} } )
+   AADD( aMessages, { {"role","user"}, ;
+                      {"text","En que puedo usar Gemini en Adaptapro?"} } )
 
    cRespuesta := oGemini:Chat( aMessages )
    ? "  [T2] Gemini: " + LEFT( cRespuesta, 120 ) + "..."

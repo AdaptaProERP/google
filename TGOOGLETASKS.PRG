@@ -227,17 +227,17 @@ return ::oGoogle:oHttp:nStatusCode == 204
 
 METHOD ParseTask( hJson ) CLASS TGoogleTasks
 
-   local hTask := {=>}
+   local hTask := {}
 
    if hJson != NIL
-      hTask[ "id"          ] := TGoogleJSON():Get( hJson, "id", "" )
-      hTask[ "title"       ] := TGoogleJSON():Get( hJson, "title", "" )
-      hTask[ "notes"       ] := TGoogleJSON():Get( hJson, "notes", "" )
-      hTask[ "status"      ] := TGoogleJSON():Get( hJson, "status", "needsAction" )
-      hTask[ "due"         ] := TGoogleJSON():Get( hJson, "due", "" )
-      hTask[ "updated"     ] := TGoogleJSON():Get( hJson, "updated", "" )
-      hTask[ "position"    ] := TGoogleJSON():Get( hJson, "position", "" )
-      hTask[ "completed"   ] := TGoogleJSON():Get( hJson, "completed", "" )
+      TGoogleJSON():Set( hTask, "id", TGoogleJSON():Get( hJson, "id", "" ) )
+      TGoogleJSON():Set( hTask, "title", TGoogleJSON():Get( hJson, "title", "" ) )
+      TGoogleJSON():Set( hTask, "notes", TGoogleJSON():Get( hJson, "notes", "" ) )
+      TGoogleJSON():Set( hTask, "status", TGoogleJSON():Get( hJson, "status", "needsAction" ) )
+      TGoogleJSON():Set( hTask, "due", TGoogleJSON():Get( hJson, "due", "" ) )
+      TGoogleJSON():Set( hTask, "updated", TGoogleJSON():Get( hJson, "updated", "" ) )
+      TGoogleJSON():Set( hTask, "position", TGoogleJSON():Get( hJson, "position", "" ) )
+      TGoogleJSON():Set( hTask, "completed", TGoogleJSON():Get( hJson, "completed", "" ) )
    endif
 
 return hTask

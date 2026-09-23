@@ -75,12 +75,12 @@ FUNCTION GEMINI_CHATBOT( cPrompt, cFuentes, cTitulo )
    aChatDisplay  := {}
 
    // Contexto del sistema
-   AADD( aChatMensajes, Hash( "role", "user", "text", "INSTRUCCION DEL SISTEMA: " + cPrompt ) )
-   AADD( aChatMensajes, Hash( "role", "model", "text", "Entendido. Actuare como asistente juridico." ) )
+   AADD( aChatMensajes, {{"role","user"},{"text", "INSTRUCCION DEL SISTEMA: " + cPrompt }} )
+   AADD( aChatMensajes, {{"role","model"},{"text", "Entendido. Actuare como asistente juridico." }} )
 
    IF !EMPTY( cFuentes )
-      AADD( aChatMensajes, Hash( "role", "user", "text", "FUENTES DE VERACIDAD:" + CRLF + cFuentes ) )
-      AADD( aChatMensajes, Hash( "role", "model", "text", "Fuentes recibidas. Las tendre en cuenta." ) )
+      AADD( aChatMensajes, {{"role","user"},{"text", "FUENTES DE VERACIDAD:" + CRLF + cFuentes }} )
+      AADD( aChatMensajes, {{"role","model"},{"text", "Fuentes recibidas. Las tendre en cuenta." }} )
       AADD( aChatDisplay, { "BOT", "Fuentes de veracidad cargadas. Estoy listo.", TIME() } )
    ENDIF
 
@@ -223,7 +223,7 @@ STATIC FUNCTION ChatbotEnviar()
 
    // Agregar mensaje del usuario
    AADD( aChatDisplay, { "USER", cTexto, cHora } )
-   AADD( aChatMensajes, Hash( "role", "user", "text", cTexto ) )
+   AADD( aChatMensajes, {{"role","user"},{"text", cTexto }} )
 
    // Limpiar input
    cChatInput := ""
@@ -247,7 +247,7 @@ STATIC FUNCTION ChatbotEnviar()
 
    // Agregar respuesta
    AADD( aChatDisplay, { "BOT", cRespuesta, TIME() } )
-   AADD( aChatMensajes, Hash( "role", "model", "text", cRespuesta ) )
+   AADD( aChatMensajes, {{"role","model"},{"text", cRespuesta }} )
 
    // Actualizar vista
    oChatBrw:SetArray( aChatDisplay, .F. )
@@ -297,10 +297,10 @@ STATIC FUNCTION ChatbotAdjuntar()
        "[ARCHIVO: " + JUSTFILENAME( cFile ) + "] " + cTipo, ;
        TIME() } )
 
-   AADD( aChatMensajes, Hash( "role", "user", "text", ;
+   AADD( aChatMensajes, {{"role","user"},{"text", ;
        "Archivo adjunto '" + JUSTFILENAME( cFile ) + "' tipo " + cTipo + ;
        ". Contenido Base64: " + LEFT( cArchB64, 500 ) + ;
-       IF( LEN( cArchB64 ) > 500, "...", "" ) ) )
+       IF( LEN( cArchB64 ) > 500, "...", "" ) }} )
 
    oChatBrw:SetArray( aChatDisplay, .F. )
    oChatBrw:Refresh()
@@ -318,12 +318,12 @@ STATIC FUNCTION ChatbotLimpiar()
       aChatMensajes := {}
       aChatDisplay  := {}
 
-      AADD( aChatMensajes, Hash( "role", "user", "text", "INSTRUCCION DEL SISTEMA: " + cChatPrompt ) )
-      AADD( aChatMensajes, Hash( "role", "model", "text", "Entendido." ) )
+      AADD( aChatMensajes, {{"role","user"},{"text", "INSTRUCCION DEL SISTEMA: " + cChatPrompt }} )
+      AADD( aChatMensajes, {{"role","model"},{"text", "Entendido." }} )
 
       IF !EMPTY( cChatFuentes )
-         AADD( aChatMensajes, Hash( "role", "user", "text", "FUENTES: " + cChatFuentes ) )
-         AADD( aChatMensajes, Hash( "role", "model", "text", "Fuentes recibidas." ) )
+         AADD( aChatMensajes, {{"role","user"},{"text", "FUENTES: " + cChatFuentes }} )
+         AADD( aChatMensajes, {{"role","model"},{"text", "Fuentes recibidas." }} )
       ENDIF
 
       AADD( aChatDisplay, { "BOT", "Chat reiniciado. Listo.", TIME() } )
@@ -391,15 +391,15 @@ FUNCTION GEMINI_CONSULTA( cMensaje, cPrompt, cFuentes )
    oGemini := oGoogle:Gemini()
    oGemini:SetTemperature( 0.3 )
 
-   AADD( aMensajes, Hash( "role", "user", "text", "INSTRUCCION: " + cPrompt ) )
-   AADD( aMensajes, Hash( "role", "model", "text", "Entendido." ) )
+   AADD( aMensajes, {{"role","user"},{"text", "INSTRUCCION: " + cPrompt }} )
+   AADD( aMensajes, {{"role","model"},{"text", "Entendido." }} )
 
    IF !EMPTY( cFuentes )
-      AADD( aMensajes, Hash( "role", "user", "text", "FUENTES: " + cFuentes ) )
-      AADD( aMensajes, Hash( "role", "model", "text", "Fuentes recibidas." ) )
+      AADD( aMensajes, {{"role","user"},{"text", "FUENTES: " + cFuentes }} )
+      AADD( aMensajes, {{"role","model"},{"text", "Fuentes recibidas." }} )
    ENDIF
 
-   AADD( aMensajes, Hash( "role", "user", "text", cMensaje ) )
+   AADD( aMensajes, {{"role","user"},{"text", cMensaje }} )
 
    BEGIN SEQUENCE
       cRespuesta := oGemini:Chat( aMensajes )

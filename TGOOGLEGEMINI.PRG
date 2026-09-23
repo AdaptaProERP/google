@@ -182,13 +182,13 @@ METHOD ParseResponse( cResponse ) CLASS TGoogleGemini
    if hJson != NIL
       // Estructura: { "candidates": [ { "content": { "parts": [ { "text": "..." } ] } } ] }
       if TGoogleJSON():HasKey( hJson, "candidates" )
-         aCandidates := hJson[ "candidates" ]
+         aCandidates := TGoogleJSON():Get( hJson, "candidates", {} )
          if ValType( aCandidates ) == "A" .AND. Len( aCandidates ) > 0
             hCandidate := aCandidates[ 1 ]
             if TGoogleJSON():HasKey( hCandidate, "content" )
-               hContent := hCandidate[ "content" ]
+               hContent := TGoogleJSON():Get( hCandidate, "content" )
                if TGoogleJSON():HasKey( hContent, "parts" )
-                  aParts := hContent[ "parts" ]
+                  aParts := TGoogleJSON():Get( hContent, "parts", {} )
                   if ValType( aParts ) == "A" .AND. Len( aParts ) > 0
                      cText := TGoogleJSON():Get( aParts[ 1 ], "text", "" )
                   endif
@@ -199,7 +199,7 @@ METHOD ParseResponse( cResponse ) CLASS TGoogleGemini
 
       // Si hay error
       if Empty( cText ) .AND. TGoogleJSON():HasKey( hJson, "error" )
-         cText := "ERROR: " + TGoogleJSON():Get( hJson["error"], "message", "Error desconocido" )
+         cText := "ERROR: " + TGoogleJSON():Get( TGoogleJSON():Get( hJson, "error" ), "message", "Error desconocido" )
       endif
    endif
 

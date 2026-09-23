@@ -293,17 +293,17 @@ return cClause + " and trashed=false"
 
 METHOD ParseFile( hJson ) CLASS TGoogleDrive
 
-   local hFile := {=>}
+   local hFile := {}
 
    if hJson != NIL
-      hFile[ "id"           ] := TGoogleJSON():Get( hJson, "id", "" )
-      hFile[ "name"         ] := TGoogleJSON():Get( hJson, "name", "" )
-      hFile[ "mimeType"     ] := TGoogleJSON():Get( hJson, "mimeType", "" )
-      hFile[ "modifiedTime" ] := TGoogleJSON():Get( hJson, "modifiedTime", "" )
-      hFile[ "size"         ] := TGoogleJSON():Get( hJson, "size", "" )
-      hFile[ "trashed"      ] := TGoogleJSON():Get( hJson, "trashed", .F. )
-      hFile[ "parents"      ] := TGoogleJSON():Get( hJson, "parents", {} )
-      hFile[ "webViewLink"  ] := TGoogleJSON():Get( hJson, "webViewLink", "" )
+      TGoogleJSON():Set( hFile, "id", TGoogleJSON():Get( hJson, "id", "" ) )
+      TGoogleJSON():Set( hFile, "name", TGoogleJSON():Get( hJson, "name", "" ) )
+      TGoogleJSON():Set( hFile, "mimeType", TGoogleJSON():Get( hJson, "mimeType", "" ) )
+      TGoogleJSON():Set( hFile, "modifiedTime", TGoogleJSON():Get( hJson, "modifiedTime", "" ) )
+      TGoogleJSON():Set( hFile, "size", TGoogleJSON():Get( hJson, "size", "" ) )
+      TGoogleJSON():Set( hFile, "trashed", TGoogleJSON():Get( hJson, "trashed", .F. ) )
+      TGoogleJSON():Set( hFile, "parents", TGoogleJSON():Get( hJson, "parents", {} ) )
+      TGoogleJSON():Set( hFile, "webViewLink", TGoogleJSON():Get( hJson, "webViewLink", "" ) )
    endif
 
 return hFile

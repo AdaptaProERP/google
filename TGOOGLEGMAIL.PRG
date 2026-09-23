@@ -188,14 +188,14 @@ return cResult
 
 METHOD ParseMessage( hJson ) CLASS TGoogleGmail
 
-   local hMsg := {=>}
+   local hMsg := {}
    local hPayload, aHeaders, hHeader, cName, cValue
 
    if hJson != NIL
-      hMsg[ "id"       ] := TGoogleJSON():Get( hJson, "id", "" )
-      hMsg[ "threadId" ] := TGoogleJSON():Get( hJson, "threadId", "" )
-      hMsg[ "labelIds" ] := TGoogleJSON():Get( hJson, "labelIds", {} )
-      hMsg[ "snippet"  ] := TGoogleJSON():Get( hJson, "snippet", "" )
+      TGoogleJSON():Set( hMsg, "id", TGoogleJSON():Get( hJson, "id", "" ) )
+      TGoogleJSON():Set( hMsg, "threadId", TGoogleJSON():Get( hJson, "threadId", "" ) )
+      TGoogleJSON():Set( hMsg, "labelIds", TGoogleJSON():Get( hJson, "labelIds", {} ) )
+      TGoogleJSON():Set( hMsg, "snippet", TGoogleJSON():Get( hJson, "snippet", "" ) )
 
        hPayload := TGoogleJSON():Get( hJson, "payload", NIL )
        if hPayload != NIL
@@ -205,13 +205,13 @@ METHOD ParseMessage( hJson ) CLASS TGoogleGmail
              cValue := TGoogleJSON():Get( hHeader, "value", "" )
             do case
                case Upper( cName ) == "SUBJECT"
-                  hMsg[ "subject" ] := cValue
+                  TGoogleJSON():Set( hMsg, "subject", cValue )
                case Upper( cName ) == "FROM"
-                  hMsg[ "from" ] := cValue
+                  TGoogleJSON():Set( hMsg, "from", cValue )
                case Upper( cName ) == "TO"
-                  hMsg[ "to" ] := cValue
+                  TGoogleJSON():Set( hMsg, "to", cValue )
                case Upper( cName ) == "DATE"
-                  hMsg[ "date" ] := cValue
+                  TGoogleJSON():Set( hMsg, "date", cValue )
             endcase
          next
       endif

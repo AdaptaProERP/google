@@ -202,7 +202,7 @@ METHOD ParseValues( hJson ) CLASS TGoogleSheets
    local aData := {}, aRow
 
    if hJson != NIL .AND. TGoogleJSON():HasKey( hJson, "values" )
-      aData := hJson[ "values" ]
+      aData := TGoogleJSON():Get( hJson, "values", {} )
    endif
 
 return aData

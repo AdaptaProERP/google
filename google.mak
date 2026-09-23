@@ -35,7 +35,6 @@ PRG = \
   $(GOOGLEDIR)\ej08_gemini_chatbot.prg
 
 C = \
-  $(GOOGLEDIR)\hb_hash.c   \
   $(GOOGLEDIR)\hb_compat.c
 
 #-------------------------------------------------------------
@@ -56,7 +55,6 @@ GOOGLE_OBJ = \
   $(GOOGLEDIR)\obj\DRIVECHECK.OBJ       \
   $(GOOGLEDIR)\obj\GEMINI_CHATBOT.OBJ   \
   $(GOOGLEDIR)\obj\ej08_gemini_chatbot.OBJ \
-  $(GOOGLEDIR)\obj\hb_hash.OBJ          \
   $(GOOGLEDIR)\obj\hb_compat.OBJ
 
 #-------------------------------------------------------------

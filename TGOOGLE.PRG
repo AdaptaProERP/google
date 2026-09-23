@@ -207,15 +207,15 @@ return nil
 
 METHOD SaveConfig() CLASS TGoogle
 
-   local hConfig := Hash()
+   local hConfig := {}
 
-   hConfig[ "api_key"       ] := ::cApiKey
-   hConfig[ "client_id"     ] := ::cClientId
-   hConfig[ "client_secret" ] := ::cClientSecret
-   hConfig[ "cuenta_gmail"  ] := ::cCuentaGmail
-   hConfig[ "server_gemini" ] := ::cServerGemini
-   hConfig[ "model_gemini"  ] := ::cModelGemini
-   hConfig[ "debug"         ] := ::lDebug
+   TGoogleJSON():Set( hConfig, "api_key", ::cApiKey )
+   TGoogleJSON():Set( hConfig, "client_id", ::cClientId )
+   TGoogleJSON():Set( hConfig, "client_secret", ::cClientSecret )
+   TGoogleJSON():Set( hConfig, "cuenta_gmail", ::cCuentaGmail )
+   TGoogleJSON():Set( hConfig, "server_gemini", ::cServerGemini )
+   TGoogleJSON():Set( hConfig, "model_gemini", ::cModelGemini )
+   TGoogleJSON():Set( hConfig, "debug", ::lDebug )
 
 return TGoogleJSON():ToFile( TGOOGLE_CONFIG_FILE, hConfig )
 

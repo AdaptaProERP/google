@@ -75,31 +75,31 @@ FUNCTION EJEMPLO_CHAT_PERSISTENTE()
    oGemini:SetTemperature( 0.3 )
 
    // Primera pregunta
-   AADD( aMensajes, { "role" => "user", ;
-       "text" => "INSTRUCCION: Eres experto en derecho mercantil venezolano." } )
-   AADD( aMensajes, { "role" => "model", ;
-       "text" => "Entendido. Estoy listo." } )
+   AADD( aMensajes, { {"role","user"}, ;
+       {"text","INSTRUCCION: Eres experto en derecho mercantil venezolano."} } )
+   AADD( aMensajes, { {"role","model"}, ;
+       {"text","Entendido. Estoy listo."} } )
 
-   AADD( aMensajes, { "role" => "user", ;
-       "text" => "Que es una sociedad mercantil?" } )
+   AADD( aMensajes, { {"role","user"}, ;
+       {"text","Que es una sociedad mercantil?"} } )
 
    cResp1 := oGemini:Chat( aMensajes )
    ? "Pregunta 1: Que es una sociedad mercantil?"
    ? "Respuesta:", cResp1
 
    // Segunda pregunta (multi-turno)
-   AADD( aMensajes, { "role" => "model", "text" => cResp1 } )
-   AADD( aMensajes, { "role" => "user", ;
-       "text" => "Y que tipos de sociedades existen?" } )
+   AADD( aMensajes, { {"role","model"}, {"text",cResp1} } )
+   AADD( aMensajes, { {"role","user"}, ;
+       {"text","Y que tipos de sociedades existen?"} } )
 
    cResp2 := oGemini:Chat( aMensajes )
    ? "Pregunta 2: Que tipos de sociedades existen?"
    ? "Respuesta:", cResp2
 
    // Tercera pregunta
-   AADD( aMensajes, { "role" => "model", "text" => cResp2 } )
-   AADD( aMensajes, { "role" => "user", ;
-       "text" => "Cual es el procedimiento para constituir una S.R.L.?" } )
+   AADD( aMensajes, { {"role","model"}, {"text",cResp2} } )
+   AADD( aMensajes, { {"role","user"}, ;
+       {"text","Cual es el procedimiento para constituir una S.R.L.?"} } )
 
    cResp3 := oGemini:Chat( aMensajes )
    ? "Pregunta 3: Procedimiento para constituir una S.R.L.?"
